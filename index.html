@@ -244,7 +244,7 @@
     <main class="w-full min-h-screen pt-14 px-space-lg py-space-lg bg-surface-container-lowest">
       <div class="flex flex-col w-full gap-space-lg pb-space-xl">
 
-        <!-- Dynamic FX Header Ticker & Base Currency Switcher -->
+        <!-- Dynamic FX Header Ticker & Base Currency Switcher (Default INR ₹) -->
         <section class="w-full rounded-xl bg-surface-container/70 backdrop-blur-2xl shadow-md p-space-md flex flex-wrap items-center justify-between gap-space-md">
           <div class="flex items-center gap-space-md flex-wrap">
             <div class="flex items-center gap-space-xs px-space-sm py-1 rounded-full bg-surface-container-high/80 text-on-surface">
@@ -264,8 +264,8 @@
               <span class="material-symbols-outlined text-[15px] text-primary">account_balance</span>
               <span class="font-semibold text-on-surface">Base:</span>
               <select id="baseCurrencySelect" class="bg-surface-container-lowest text-primary font-semibold rounded px-1.5 py-0.5 border-none outline-none cursor-pointer">
+                <option value="INR" selected>INR (₹)</option>
                 <option value="USD">USD ($)</option>
-                <option value="INR">INR (₹)</option>
                 <option value="EUR">EUR (€)</option>
                 <option value="GBP">GBP (£)</option>
                 <option value="JPY">JPY (¥)</option>
@@ -274,8 +274,8 @@
             </div>
 
             <div class="flex items-center p-1 rounded-xl bg-surface-container-lowest/80 shadow-inner" id="currencySwitcher">
-              <button class="currency-btn px-2.5 py-1 rounded-lg font-label-caps text-label-caps font-semibold bg-primary-container text-on-primary-container transition-all" data-currency="USD">$ USD</button>
-              <button class="currency-btn px-2.5 py-1 rounded-lg font-label-caps text-label-caps font-semibold text-on-surface-variant hover:text-on-surface transition-all" data-currency="INR">₹ INR</button>
+              <button class="currency-btn px-2.5 py-1 rounded-lg font-label-caps text-label-caps font-semibold bg-primary-container text-on-primary-container transition-all" data-currency="INR">₹ INR</button>
+              <button class="currency-btn px-2.5 py-1 rounded-lg font-label-caps text-label-caps font-semibold text-on-surface-variant hover:text-on-surface transition-all" data-currency="USD">$ USD</button>
               <button class="currency-btn px-2.5 py-1 rounded-lg font-label-caps text-label-caps font-semibold text-on-surface-variant hover:text-on-surface transition-all" data-currency="EUR">€ EUR</button>
               <button class="currency-btn px-2.5 py-1 rounded-lg font-label-caps text-label-caps font-semibold text-on-surface-variant hover:text-on-surface transition-all" data-currency="GBP">£ GBP</button>
               <button class="currency-btn px-2.5 py-1 rounded-lg font-label-caps text-label-caps font-semibold text-on-surface-variant hover:text-on-surface transition-all" data-currency="JPY">¥ JPY</button>
@@ -295,7 +295,7 @@
               </div>
             </div>
             <div class="mt-space-md flex items-baseline gap-space-xs">
-              <span class="font-headline-xl text-headline-xl font-bold tracking-tight text-on-surface" id="totalOutflowMetric">$0.00</span>
+              <span class="font-headline-xl text-headline-xl font-bold tracking-tight text-on-surface" id="totalOutflowMetric">₹0.00</span>
               <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface-variant">/mo eq.</span>
             </div>
             <div class="mt-space-sm flex items-center gap-space-xs">
@@ -317,7 +317,7 @@
               </div>
             </div>
             <div class="mt-space-md flex items-baseline gap-space-xs">
-              <span class="font-headline-xl text-headline-xl font-bold tracking-tight text-on-surface" id="regularMetric">$0.00</span>
+              <span class="font-headline-xl text-headline-xl font-bold tracking-tight text-on-surface" id="regularMetric">₹0.00</span>
               <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface-variant">/mo avg</span>
             </div>
             <div class="mt-space-sm flex items-center gap-space-xs">
@@ -340,7 +340,7 @@
               </div>
             </div>
             <div class="mt-space-md flex items-baseline gap-space-xs">
-              <span class="font-headline-xl text-headline-xl font-bold tracking-tight text-on-surface" id="monthlyMetric">$0.00</span>
+              <span class="font-headline-xl text-headline-xl font-bold tracking-tight text-on-surface" id="monthlyMetric">₹0.00</span>
               <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface-variant">/mo fixed</span>
             </div>
             <div class="mt-space-sm flex items-center gap-space-xs">
@@ -361,7 +361,7 @@
               </div>
             </div>
             <div class="mt-space-md flex items-baseline gap-space-xs">
-              <span class="font-headline-xl text-headline-xl font-bold tracking-tight text-on-surface" id="yearlyAmortMetric">$0.00</span>
+              <span class="font-headline-xl text-headline-xl font-bold tracking-tight text-on-surface" id="yearlyAmortMetric">₹0.00</span>
               <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface-variant">/mo amortized</span>
             </div>
             <div class="mt-space-sm flex items-center gap-space-xs">
@@ -536,7 +536,7 @@
             </div>
           </div>
 
-          <!-- Desktop Data Table (Paid Checkbox Column Removed) -->
+          <!-- Desktop Data Table (Base INR Default) -->
           <div class="overflow-x-auto rounded-xl bg-surface-container-lowest/70">
             <table class="w-full text-left border-collapse" id="expensesTable">
               <thead>
@@ -547,7 +547,7 @@
                   <th class="py-3 px-space-sm">Type</th>
                   <th class="py-3 px-space-sm">Cycle / Due Date</th>
                   <th class="py-3 px-space-sm text-right">Amount (Active)</th>
-                  <th class="py-3 px-space-sm text-right">Base (USD)</th>
+                  <th class="py-3 px-space-sm text-right">Base (INR)</th>
                   <th class="py-3 px-space-sm">Method</th>
                   <th class="py-3 px-space-md text-right">Actions</th>
                 </tr>
@@ -563,7 +563,7 @@
     </main>
   </div>
 
-  <!-- Add / Edit Expense Slide-Over Modal -->
+  <!-- Add / Edit Expense Slide-Over Modal (Default INR Base) -->
   <div class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md hidden items-center justify-center p-space-md transition-opacity" id="expenseModal">
     <div class="w-full max-w-lg rounded-2xl bg-surface-container-high/90 backdrop-blur-2xl shadow-2xl p-space-xl flex flex-col gap-space-lg transform transition-all scale-100">
       <div class="flex items-center justify-between pb-space-sm border-b border-surface-container-highest">
@@ -619,9 +619,9 @@
             </select>
           </div>
           <div class="flex flex-col gap-1">
-            <label class="font-label-caps text-label-caps text-on-surface uppercase font-semibold">Amount (USD Base)</label>
+            <label class="font-label-caps text-label-caps text-on-surface uppercase font-semibold">Amount (INR Base)</label>
             <div class="relative flex items-center">
-              <span class="absolute left-3 font-label-numeric-sm text-label-numeric-sm text-primary" id="modalCurrencySymbol">$</span>
+              <span class="absolute left-3 font-label-numeric-sm text-label-numeric-sm text-primary" id="modalCurrencySymbol">₹</span>
               <input class="pl-7 pr-space-md py-2 w-full rounded-xl bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant outline-none focus:ring-1 focus:ring-primary-container font-label-numeric-md text-label-numeric-md" id="inputAmount" placeholder="0.00" required="" step="0.01" type="number"/>
             </div>
           </div>
@@ -635,12 +635,11 @@
           <div class="flex flex-col gap-1">
             <label class="font-label-caps text-label-caps text-on-surface uppercase font-semibold">Payment Source</label>
             <select class="px-space-md py-2 rounded-xl bg-surface-container-lowest text-on-surface outline-none focus:ring-1 focus:ring-primary-container font-body-md text-body-md" id="inputMethod">
+              <option>UPI / HDFC NetBanking</option>
               <option>Amex Corp (••9901)</option>
               <option>Chase Sapphire (••3011)</option>
               <option>Apple Pay (••8492)</option>
-              <option>Amex Gold (••1004)</option>
-              <option>Apple Card (••2910)</option>
-              <option>ACH Direct Debit</option>
+              <option>ICICI Bank Direct Debit</option>
               <option>ACH Escrow Vault</option>
             </select>
           </div>
