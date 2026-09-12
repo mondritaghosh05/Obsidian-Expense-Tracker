@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Expense Tracker Security Rules
+    match /expenses/{expenseId} {
+      allow read, write: if true; // Demo rules for fast testing & prototyping
+      // Production secure pattern:
+      // allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+  }
+}
