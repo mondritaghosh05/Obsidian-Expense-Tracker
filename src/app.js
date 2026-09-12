@@ -4,6 +4,7 @@ import {
   addExpenseDoc, 
   updateExpenseDoc, 
   deleteExpenseDoc,
+  toggleExpenseStatusDoc,
   clearAllExpenses,
   reseedExpenses,
   setActiveVault
@@ -11,19 +12,21 @@ import {
 import { 
   getActiveCurrency, 
   setActiveCurrency, 
+  setBaseCurrency,
+  getBaseCurrency,
+  getFxTickerPairs,
   formatCurrency 
 } from './services/fxService.js';
 
 let allExpenses = [];
 let currentFilter = 'all'; // 'all', 'regular', 'monthly', 'yearly'
-let selectedCategoryFilter = null; // null or specific category
+let selectedCategoryFilter = null;
 let searchQuery = '';
 let editingExpenseId = null;
+let lastSavedId = null;
 
-// Target monthly budget state (Default $15,000)
 let targetMonthlyBudgetUsd = parseFloat(localStorage.getItem('obsidian_target_budget') || '15000');
 
-// Category metadata helper
 const CATEGORY_STYLES = {
   Software: { bg: 'bg-tertiary-container/30', text: 'text-on-surface', icon: 'draw', iconColor: 'text-primary-fixed' },
   Housing: { bg: 'bg-primary-container/20', text: 'text-primary-container', icon: 'apartment', iconColor: 'text-primary' },
@@ -55,6 +58,9 @@ const displayedCount = document.getElementById('displayedCount');
 const tableSearchInput = document.getElementById('tableSearchInput');
 const headerSearchInput = document.getElementById('headerSearchInput');
 
+const baseCurrencySelect = document.getElementById('baseCurrencySelect');
+const fxTickerContainer = document.getElementById('fxTickerContainer');
+
 const expenseModal = document.getElementById('expenseModal');
 const openAddModalBtn = document.getElementById('openAddModalBtn');
 const closeModalBtn = document.getElementById('closeModalBtn');
@@ -64,6 +70,7 @@ const modalHeading = document.getElementById('modalHeading');
 const modalCurrencySymbol = document.getElementById('modalCurrencySymbol');
 
 const exportCsvBtn = document.getElementById('exportCsvBtn');
+const sidebarExportBtn = document.getElementById('sidebarExportBtn');
 const resetLedgerBtn = document.getElementById('resetLedgerBtn');
 const editBudgetBtn = document.getElementById('editBudgetBtn');
 
@@ -81,7 +88,21 @@ function showToast(msg) {
   }, 2500);
 }
 
-// Recalculate Metrics and Budget Target Status
+// Render Dynamic Top FX Exchange Rate Ticker
+function updateFxTickerUI() {
+  if (!fxTickerContainer) return;
+  const pairs = getFxTickerPairs();
+
+  fxTickerContainer.innerHTML = pairs.map(p => `
+    <div class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-lowest/60 text-on-surface hover:bg-surface-container-lowest transition-colors cursor-pointer" title="Exchange Pair relative to Base">
+      <span class="text-on-surface-variant font-medium">${p.name}</span>
+      <span class="font-semibold text-primary">${p.value}</span>
+      <span class="${p.positive ? 'text-secondary' : 'text-error'} flex items-center text-[11px] font-semibold">${p.change}</span>
+    </div>
+  `).join('');
+}
+
+// Update Summary Metrics
 function updateMetrics() {
   let regularUsdMonthly = 0;
   let monthlyUsdFixed = 0;
@@ -109,7 +130,6 @@ function updateMetrics() {
   if (monthlyMetric) monthlyMetric.textContent = formatCurrency(monthlyUsdFixed);
   if (yearlyAmortMetric) yearlyAmortMetric.textContent = formatCurrency(yearlyUsdAmortized);
 
-  // Budget Progress Bar & Status Delta
   const pctSpent = Math.min(100, Math.round((totalMonthlyOutflowUsd / targetMonthlyBudgetUsd) * 100));
   if (totalOutflowProgressBar) {
     totalOutflowProgressBar.style.width = `${pctSpent}%`;
@@ -129,7 +149,7 @@ function updateMetrics() {
   }
 }
 
-// Dynamically Render Donut SVG Chart & Interactive Category Filters
+// Render Category Donut SVG Chart
 function updateDonutChart() {
   const categoryTotals = {
     Housing: 0,
@@ -159,7 +179,6 @@ function updateDonutChart() {
   const transitPct = Math.round((categoryTotals.Transit / grandTotal) * 100);
   const otherPct = Math.max(0, 100 - (housingPct + softwarePct + diningPct + transitPct));
 
-  // Update DOM percentages
   const housingEl = document.getElementById('pctHousing');
   const softwareEl = document.getElementById('pctSoftware');
   const diningEl = document.getElementById('pctDining');
@@ -170,7 +189,6 @@ function updateDonutChart() {
   if (diningEl) diningEl.textContent = `${diningPct}%`;
   if (transitEl) transitEl.textContent = `${transitPct}%`;
 
-  // SVG Circumference ~ 238.76
   const circ = 238.76;
   let offset = 0;
 
@@ -193,7 +211,7 @@ function updateDonutChart() {
   });
 }
 
-// Dynamically Render Cashflow Velocity SVG Graph
+// Render Cashflow Velocity SVG Graph
 function updateVelocityGraph() {
   const cyanPath = document.getElementById('cyanGraphPath');
   const cyanArea = document.getElementById('cyanGraphArea');
@@ -211,9 +229,6 @@ function updateVelocityGraph() {
     else if (exp.cadence === 'yearly') monthlySumUsd += amt / 12;
   });
 
-  // Generate 7-point projection curve across months
-  // Canvas size: 700 width x 200 height. Y=0 is top, Y=200 is bottom.
-  // Base baseline Y=160
   const maxScale = Math.max(20000, targetMonthlyBudgetUsd * 1.4);
   const normalizedOutflow = Math.min(180, (monthlySumUsd / maxScale) * 160);
   const normalizedTarget = Math.min(180, (targetMonthlyBudgetUsd / maxScale) * 160);
@@ -221,7 +236,6 @@ function updateVelocityGraph() {
   const yActual = 180 - normalizedOutflow;
   const yTarget = 180 - normalizedTarget;
 
-  // Actual Outflow Curve Points
   const p0 = [0, yActual + 15];
   const p1 = [120, yActual - 10];
   const p2 = [240, yActual + 8];
@@ -230,7 +244,6 @@ function updateVelocityGraph() {
   const p5 = [600, yActual - 20];
   const p6 = [700, yActual - 10];
 
-  // Target Ceiling Curve Points
   const t0 = [0, yTarget + 10];
   const t1 = [140, yTarget - 5];
   const t2 = [280, yTarget + 5];
@@ -262,7 +275,7 @@ function updateVelocityGraph() {
   }
 }
 
-// Render Data Table
+// Render Ledger Directory Table
 function renderTable() {
   if (!expenseRowsContainer) return;
 
@@ -284,10 +297,10 @@ function renderTable() {
   if (filtered.length === 0) {
     expenseRowsContainer.innerHTML = `
       <tr>
-        <td colspan="8" class="py-8 text-center text-on-surface-variant font-body-md">
+        <td colspan="9" class="py-8 text-center text-on-surface-variant font-body-md">
           <div class="flex flex-col items-center gap-2">
             <span class="material-symbols-outlined text-[32px]">folder_off</span>
-            <span>No matching expense entries found in current filter.</span>
+            <span>No matching expense entries found in current view.</span>
           </div>
         </td>
       </tr>
@@ -299,6 +312,7 @@ function renderTable() {
     const style = getCategoryStyle(exp.category);
     const activeAmt = formatCurrency(parseFloat(exp.amount) || 0);
     const baseUsd = '$' + (parseFloat(exp.amount) || 0).toFixed(2);
+    const isAddressed = exp.status === 'addressed';
     
     let cadenceBadge = '';
     if (exp.cadence === 'regular') {
@@ -309,14 +323,24 @@ function renderTable() {
       cadenceBadge = '<span class="px-2 py-0.5 rounded-md font-label-caps text-label-caps font-semibold bg-tertiary-container/40 text-on-surface">Yearly</span>';
     }
 
+    const isJustSaved = exp.id === lastSavedId;
+    const highlightClasses = isJustSaved ? 'bg-primary-container/20 ring-1 ring-primary-container' : '';
+
     return `
-      <tr class="expense-row group hover:bg-surface-container-high/30 transition-colors" data-id="${exp.id}">
+      <tr class="expense-row group hover:bg-surface-container-high/30 transition-all duration-300 ${highlightClasses} ${isAddressed ? 'opacity-90' : ''}" data-id="${exp.id}">
+        <!-- Paid / Addressed Checkbox -->
+        <td class="py-3.5 px-space-xs text-center">
+          <button class="status-toggle-btn w-6 h-6 rounded-md border flex items-center justify-center transition-all ${isAddressed ? 'bg-secondary border-secondary text-surface-container-lowest' : 'border-outline-variant hover:border-primary text-transparent'}" data-id="${exp.id}" data-status="${exp.status || 'pending'}" title="${isAddressed ? 'Mark Pending' : 'Mark Addressed / Paid'}">
+            <span class="material-symbols-outlined text-[14px] font-bold">check</span>
+          </button>
+        </td>
+
         <td class="py-3.5 px-space-md flex items-center gap-space-sm">
           <div class="w-7 h-7 rounded-lg bg-surface-container-highest flex items-center justify-center ${style.iconColor}">
             <span class="material-symbols-outlined text-[16px]">${style.icon}</span>
           </div>
           <div class="flex flex-col">
-            <span class="font-title-md text-title-md text-on-surface font-medium">${exp.title}</span>
+            <span class="font-title-md text-title-md ${isAddressed ? 'line-through text-on-surface-variant' : 'text-on-surface'} font-medium">${exp.title}</span>
             <span class="font-body-sm text-body-sm text-on-surface-variant">${exp.note || exp.category + ' Entry'}</span>
           </div>
         </td>
@@ -347,29 +371,41 @@ function renderTable() {
       </tr>
     `;
   }).join('');
+
+  // Scroll to and focus saved row if available
+  if (lastSavedId) {
+    setTimeout(() => {
+      const savedRow = document.querySelector(`.expense-row[data-id="${lastSavedId}"]`);
+      if (savedRow) {
+        savedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  }
 }
 
 function updateUI() {
+  updateFxTickerUI();
   updateMetrics();
   updateDonutChart();
   updateVelocityGraph();
   renderTable();
 }
 
-// Export Ledger to CSV File
+// Export Ledger to CSV
 function exportToCSV() {
   if (allExpenses.length === 0) {
     showToast('No expenses available to export');
     return;
   }
 
-  const headers = ['ID', 'Title', 'Category', 'Cadence', 'Amount_USD', 'DueDate', 'PaymentMethod', 'Note'];
+  const headers = ['ID', 'Title', 'Category', 'Cadence', 'Amount_USD', 'Status', 'DueDate', 'PaymentMethod', 'Note'];
   const rows = allExpenses.map(e => [
     `"${e.id}"`,
     `"${e.title.replace(/"/g, '""')}"`,
     `"${e.category}"`,
     `"${e.cadence}"`,
     e.amount,
+    `"${e.status || 'addressed'}"`,
     `"${e.dueDate || ''}"`,
     `"${e.paymentMethod || ''}"`,
     `"${(e.note || '').replace(/"/g, '""')}"`
@@ -424,9 +460,46 @@ function closeModal() {
   expenseForm.reset();
 }
 
+// Set Active Sidebar Navigation Style
+function updateSidebarNavHighlight(activeNavTarget) {
+  const sidebarLinks = document.querySelectorAll('[data-nav]');
+  sidebarLinks.forEach(link => {
+    const nav = link.getAttribute('data-nav');
+    if (nav === activeNavTarget) {
+      link.className = 'sidebar-nav-item flex items-center gap-space-sm px-space-md py-space-sm rounded-xl bg-primary-container text-on-primary-container font-semibold shadow-[0_0_16px_rgba(0,242,254,0.35)] transition-all font-body-md text-body-md w-full text-left';
+    } else {
+      link.className = 'sidebar-nav-item flex items-center gap-space-sm px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all font-body-md text-body-md w-full text-left';
+    }
+  });
+}
+
 // Event Listeners Setup
 function setupEventListeners() {
-  // Currency Buttons
+  // Base Currency Dropdown
+  if (baseCurrencySelect) {
+    baseCurrencySelect.addEventListener('change', (e) => {
+      const newBase = e.target.value;
+      setBaseCurrency(newBase);
+      setActiveCurrency(newBase);
+      
+      // Update active currency buttons UI
+      const currencyButtons = document.querySelectorAll('.currency-btn');
+      currencyButtons.forEach(b => {
+        if (b.getAttribute('data-currency') === newBase) {
+          b.classList.add('bg-primary-container', 'text-on-primary-container');
+          b.classList.remove('text-on-surface-variant');
+        } else {
+          b.classList.remove('bg-primary-container', 'text-on-primary-container');
+          b.classList.add('text-on-surface-variant');
+        }
+      });
+
+      updateUI();
+      showToast(`Base & display currency set to ${newBase}`);
+    });
+  }
+
+  // Active Currency Buttons
   const currencyButtons = document.querySelectorAll('.currency-btn');
   currencyButtons.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -440,7 +513,51 @@ function setupEventListeners() {
       const code = btn.getAttribute('data-currency');
       const updatedCurr = setActiveCurrency(code);
       updateUI();
-      showToast(`Currency converted to ${updatedCurr.code} (${updatedCurr.symbol})`);
+      showToast(`Display currency set to ${updatedCurr.code} (${updatedCurr.symbol})`);
+    });
+  });
+
+  // Sidebar Navigation Routing
+  const sidebarNavItems = document.querySelectorAll('[data-nav]');
+  sidebarNavItems.forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      const navTarget = item.getAttribute('data-nav');
+      updateSidebarNavHighlight(navTarget);
+
+      if (navTarget === 'overview') {
+        currentFilter = 'all';
+        selectedCategoryFilter = null;
+        renderTable();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        showToast('Viewing Overview & All Expenses');
+      } else if (navTarget === 'regular' || navTarget === 'monthly' || navTarget === 'yearly') {
+        currentFilter = navTarget;
+        selectedCategoryFilter = null;
+        
+        // Update tab buttons
+        const ledgerTabs = document.querySelectorAll('.ledger-tab');
+        ledgerTabs.forEach(t => {
+          if (t.getAttribute('data-filter') === navTarget) {
+            t.classList.add('bg-surface-container-highest', 'text-on-surface', 'shadow-sm');
+            t.classList.remove('text-on-surface-variant');
+          } else {
+            t.classList.remove('bg-surface-container-highest', 'text-on-surface', 'shadow-sm');
+            t.classList.add('text-on-surface-variant');
+          }
+        });
+
+        renderTable();
+        const directoryTable = document.getElementById('expensesTable');
+        if (directoryTable) directoryTable.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        showToast(`Filtered ledger by ${navTarget} expenses`);
+      } else if (navTarget === 'fx') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (baseCurrencySelect) baseCurrencySelect.focus();
+        showToast('Focused FX Currency Exchange Ticker');
+      } else if (navTarget === 'export') {
+        exportToCSV();
+      }
     });
   });
 
@@ -456,11 +573,12 @@ function setupEventListeners() {
       tab.classList.remove('text-on-surface-variant');
 
       currentFilter = tab.getAttribute('data-filter');
+      updateSidebarNavHighlight(currentFilter === 'all' ? 'overview' : currentFilter);
       renderTable();
     });
   });
 
-  // Category Donut Slice & Legend Filters
+  // Category Filters
   const categoryFilterRows = document.querySelectorAll('.cat-filter-btn');
   categoryFilterRows.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -479,7 +597,7 @@ function setupEventListeners() {
     });
   });
 
-  // ⌘K / Ctrl+K Global Search Shortcut
+  // Keyboard Shortcuts (⌘K)
   document.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
       e.preventDefault();
@@ -493,7 +611,6 @@ function setupEventListeners() {
     }
   });
 
-  // Search input listeners
   const handleSearch = (val) => {
     searchQuery = val || '';
     if (headerSearchInput && headerSearchInput.value !== val) headerSearchInput.value = val;
@@ -504,7 +621,7 @@ function setupEventListeners() {
   if (tableSearchInput) tableSearchInput.addEventListener('input', (e) => handleSearch(e.target.value));
   if (headerSearchInput) headerSearchInput.addEventListener('input', (e) => handleSearch(e.target.value));
 
-  // Edit Budget Goal Listener
+  // Target Budget Limit Editor
   if (editBudgetBtn) {
     editBudgetBtn.addEventListener('click', () => {
       const inputVal = prompt('Enter your target monthly budget limit (in USD):', targetMonthlyBudgetUsd);
@@ -519,8 +636,9 @@ function setupEventListeners() {
 
   // Export CSV Action
   if (exportCsvBtn) exportCsvBtn.addEventListener('click', exportToCSV);
+  if (sidebarExportBtn) sidebarExportBtn.addEventListener('click', exportToCSV);
 
-  // Reset / Clear Ledger Action
+  // Reset Dataset Action
   if (resetLedgerBtn) {
     resetLedgerBtn.addEventListener('click', async () => {
       if (confirm('Clear active ledger and reload default sample expenses?')) {
@@ -530,7 +648,7 @@ function setupEventListeners() {
     });
   }
 
-  // Vault Switcher Listener
+  // Multi-Vault Selector
   const vaultSelector = document.getElementById('vaultSelector');
   if (vaultSelector) {
     vaultSelector.addEventListener('change', (e) => {
@@ -554,11 +672,19 @@ function setupEventListeners() {
     });
   }
 
-  // Table Edit/Delete delegation
+  // Table Action Delegation (Edit, Delete, Status Toggle)
   if (expenseRowsContainer) {
     expenseRowsContainer.addEventListener('click', async (e) => {
       const editBtn = e.target.closest('.edit-btn');
       const deleteBtn = e.target.closest('.delete-btn');
+      const statusBtn = e.target.closest('.status-toggle-btn');
+
+      if (statusBtn) {
+        const id = statusBtn.getAttribute('data-id');
+        const currStatus = statusBtn.getAttribute('data-status');
+        const newStatus = await toggleExpenseStatusDoc(id, currStatus);
+        showToast(newStatus === 'addressed' ? 'Marked expense as Addressed / Paid' : 'Marked expense as Pending');
+      }
 
       if (editBtn) {
         const id = editBtn.getAttribute('data-id');
@@ -578,7 +704,7 @@ function setupEventListeners() {
     });
   }
 
-  // Form Submit
+  // Form Submission (Add / Edit)
   if (expenseForm) {
     expenseForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -595,25 +721,47 @@ function setupEventListeners() {
         cadence,
         amount,
         dueDate,
-        paymentMethod
+        paymentMethod,
+        status: 'addressed'
       };
 
       if (editingExpenseId) {
         await updateExpenseDoc(editingExpenseId, payload);
-        showToast(`Updated ${title}`);
+        lastSavedId = editingExpenseId;
+        showToast(`Saved updates for ${title}`);
       } else {
-        await addExpenseDoc(payload);
-        showToast(`Added ${title} to Firestore`);
+        const newId = await addExpenseDoc(payload);
+        lastSavedId = newId;
+        showToast(`Recorded new expense: ${title}`);
       }
 
+      // Reset filters so saved row is immediately visible
+      if (currentFilter !== 'all' && currentFilter !== cadence) {
+        currentFilter = 'all';
+        const ledgerTabs = document.querySelectorAll('.ledger-tab');
+        ledgerTabs.forEach(t => {
+          if (t.getAttribute('data-filter') === 'all') {
+            t.classList.add('bg-surface-container-highest', 'text-on-surface', 'shadow-sm');
+          } else {
+            t.classList.remove('bg-surface-container-highest', 'text-on-surface', 'shadow-sm');
+          }
+        });
+      }
+
+      selectedCategoryFilter = null;
+      searchQuery = '';
+      if (tableSearchInput) tableSearchInput.value = '';
+      if (headerSearchInput) headerSearchInput.value = '';
+
       closeModal();
+      renderTable();
     });
   }
 }
 
-// Entrypoint
+// App Entrypoint
 async function startApp() {
-  console.log('Initializing Obsidian Interactive Expense Tracker...');
+  console.log('Initializing Obsidian Expense Tracker...');
   await initAuth();
 
   setupEventListeners();

@@ -145,21 +145,12 @@
       </div>
     </div>
 
-    <!-- ⌘K Search input in Header -->
+    <!-- ⌘K Search Input in Header -->
     <div class="flex-1 max-w-xl mx-space-md flex items-center gap-space-sm">
       <div class="flex-1 flex items-center gap-space-xs px-space-md py-1 rounded-xl bg-surface-container-low/70 backdrop-blur-md text-on-surface-variant shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
         <span class="material-symbols-outlined text-[16px]">search</span>
         <input class="bg-transparent border-none outline-none text-on-surface placeholder:text-on-surface-variant font-body-sm text-body-sm w-full" id="headerSearchInput" placeholder="Search transactions, vaults, tags (⌘K)..." type="text"/>
         <span class="font-label-caps text-label-caps px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant cursor-pointer" title="Press ⌘K or Ctrl+K to search">⌘K</span>
-      </div>
-      <div class="hidden xl:flex items-center gap-space-xs px-space-md py-1 rounded-full bg-surface-container-low/60 backdrop-blur-md">
-        <div class="flex items-center gap-1 font-label-numeric-sm text-label-numeric-sm text-secondary">
-          <span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>EUR/USD 1.0894<span class="material-symbols-outlined text-[12px]">arrow_drop_up</span>
-        </div>
-        <span class="text-outline-variant font-body-sm text-body-sm">•</span>
-        <div class="flex items-center gap-1 font-label-numeric-sm text-label-numeric-sm text-error">
-          <span class="w-1.5 h-1.5 rounded-full bg-error"></span>USD/JPY 154.21<span class="material-symbols-outlined text-[12px]">arrow_drop_down</span>
-        </div>
       </div>
     </div>
 
@@ -177,7 +168,7 @@
     </div>
   </header>
 
-  <!-- Sidebar Navigation -->
+  <!-- Interactive Sidebar Navigation -->
   <aside class="fixed left-0 top-14 bottom-0 w-64 bg-surface-container-lowest/85 backdrop-blur-xl shadow-[1px_0_12px_rgba(0,0,0,0.5)] z-40 flex flex-col justify-between p-space-md">
     <div class="flex flex-col gap-space-md">
       <!-- Multi-Vault Selector -->
@@ -196,24 +187,26 @@
           </div>
         </div>
       </div>
+      
       <div class="px-space-xs font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest font-semibold">Analytics &amp; Ledgers</div>
+      
       <nav class="flex flex-col gap-space-xs">
-        <a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-xl bg-primary-container text-on-primary-container font-semibold shadow-[0_0_16px_rgba(0,242,254,0.35)] transition-all font-body-md text-body-md" href="#">
+        <button data-nav="overview" class="sidebar-nav-item flex items-center gap-space-sm px-space-md py-space-sm rounded-xl bg-primary-container text-on-primary-container font-semibold shadow-[0_0_16px_rgba(0,242,254,0.35)] transition-all font-body-md text-body-md w-full text-left">
           <span class="material-symbols-outlined text-[18px]">dashboard</span>Overview &amp; Analytics
-        </a>
-        <a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all font-body-md text-body-md" href="#">
+        </button>
+        <button data-nav="regular" class="sidebar-nav-item flex items-center gap-space-sm px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all font-body-md text-body-md w-full text-left">
           <span class="material-symbols-outlined text-[18px]">payments</span>Regular Expenses
-        </a>
-        <a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all font-body-md text-body-md" href="#">
+        </button>
+        <button data-nav="monthly" class="sidebar-nav-item flex items-center gap-space-sm px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all font-body-md text-body-md w-full text-left">
           <span class="material-symbols-outlined text-[18px]">event_repeat</span>Monthly Subscriptions
-        </a>
-        <a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all font-body-md text-body-md" href="#">
+        </button>
+        <button data-nav="yearly" class="sidebar-nav-item flex items-center gap-space-sm px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all font-body-md text-body-md w-full text-left">
           <span class="material-symbols-outlined text-[18px]">calendar_month</span>Yearly Commitments
-        </a>
-        <a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all font-body-md text-body-md" href="#">
+        </button>
+        <button data-nav="fx" class="sidebar-nav-item flex items-center gap-space-sm px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all font-body-md text-body-md w-full text-left">
           <span class="material-symbols-outlined text-[18px]">currency_exchange</span>FX Currency Exchange
-        </a>
-        <button class="flex items-center gap-space-sm px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all font-body-md text-body-md text-left w-full" id="exportCsvBtn">
+        </button>
+        <button data-nav="export" id="sidebarExportBtn" class="sidebar-nav-item flex items-center gap-space-sm px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all font-body-md text-body-md w-full text-left">
           <span class="material-symbols-outlined text-[18px]">download</span>Export CSV Ledger
         </button>
       </nav>
@@ -244,45 +237,38 @@
     <main class="w-full min-h-screen pt-14 px-space-lg py-space-lg bg-surface-container-lowest">
       <div class="flex flex-col w-full gap-space-lg pb-space-xl">
 
-        <!-- Live FX Floating Ticker & Switcher -->
+        <!-- Dynamic FX Header Ticker & Base Currency Switcher -->
         <section class="w-full rounded-xl bg-surface-container/70 backdrop-blur-2xl shadow-md p-space-md flex flex-wrap items-center justify-between gap-space-md">
           <div class="flex items-center gap-space-md flex-wrap">
             <div class="flex items-center gap-space-xs px-space-sm py-1 rounded-full bg-surface-container-high/80 text-on-surface">
               <span class="w-2 h-2 rounded-full bg-secondary shadow-sm animate-ping"></span>
-              <span class="font-label-caps text-label-caps uppercase tracking-wider text-secondary">FX Rates Synced</span>
+              <span class="font-label-caps text-label-caps uppercase tracking-wider text-secondary">Live FX Ticker</span>
             </div>
-            <div class="flex items-center gap-space-md font-label-numeric-sm text-label-numeric-sm overflow-x-auto py-0.5">
-              <div class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-lowest/60 text-on-surface hover:bg-surface-container-lowest transition-colors cursor-pointer">
-                <span class="text-on-surface-variant">EUR/USD</span>
-                <span class="font-semibold text-primary">1.0894</span>
-                <span class="text-secondary flex items-center text-[11px] font-semibold">+0.14%</span>
-              </div>
-              <div class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-lowest/60 text-on-surface hover:bg-surface-container-lowest transition-colors cursor-pointer">
-                <span class="text-on-surface-variant">USD/GBP</span>
-                <span class="font-semibold text-primary">0.7892</span>
-                <span class="text-error flex items-center text-[11px] font-semibold">-0.06%</span>
-              </div>
-              <div class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-lowest/60 text-on-surface hover:bg-surface-container-lowest transition-colors cursor-pointer">
-                <span class="text-on-surface-variant">USD/JPY</span>
-                <span class="font-semibold text-primary">154.28</span>
-                <span class="text-secondary flex items-center text-[11px] font-semibold">+0.38%</span>
-              </div>
-              <div class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-lowest/60 text-on-surface hover:bg-surface-container-lowest transition-colors cursor-pointer">
-                <span class="text-on-surface-variant">USD/CAD</span>
-                <span class="font-semibold text-primary">1.3640</span>
-                <span class="text-secondary flex items-center text-[11px] font-semibold">+0.09%</span>
-              </div>
+
+            <!-- Dynamic FX Exchange Rates Ticker Container -->
+            <div class="flex items-center gap-space-md font-label-numeric-sm text-label-numeric-sm overflow-x-auto py-0.5" id="fxTickerContainer">
+              <!-- Dynamically populated by src/app.js based on Base Currency -->
             </div>
           </div>
 
-          <!-- Active Currency Switcher -->
-          <div class="flex items-center gap-space-sm">
-            <div class="hidden sm:flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-high/60 text-on-surface-variant font-body-sm text-body-sm">
+          <!-- Base Currency Selector & Active Display Currency Switcher -->
+          <div class="flex items-center gap-space-sm flex-wrap">
+            <div class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-high/60 text-on-surface-variant font-body-sm text-body-sm">
               <span class="material-symbols-outlined text-[15px] text-primary">account_balance</span>
-              <span>Base: USD</span>
+              <span class="font-semibold text-on-surface">Base:</span>
+              <select id="baseCurrencySelect" class="bg-surface-container-lowest text-primary font-semibold rounded px-1.5 py-0.5 border-none outline-none cursor-pointer">
+                <option value="USD">USD ($)</option>
+                <option value="INR">INR (₹)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+                <option value="JPY">JPY (¥)</option>
+                <option value="CAD">CAD (C$)</option>
+              </select>
             </div>
+
             <div class="flex items-center p-1 rounded-xl bg-surface-container-lowest/80 shadow-inner" id="currencySwitcher">
               <button class="currency-btn px-2.5 py-1 rounded-lg font-label-caps text-label-caps font-semibold bg-primary-container text-on-primary-container transition-all" data-currency="USD">$ USD</button>
+              <button class="currency-btn px-2.5 py-1 rounded-lg font-label-caps text-label-caps font-semibold text-on-surface-variant hover:text-on-surface transition-all" data-currency="INR">₹ INR</button>
               <button class="currency-btn px-2.5 py-1 rounded-lg font-label-caps text-label-caps font-semibold text-on-surface-variant hover:text-on-surface transition-all" data-currency="EUR">€ EUR</button>
               <button class="currency-btn px-2.5 py-1 rounded-lg font-label-caps text-label-caps font-semibold text-on-surface-variant hover:text-on-surface transition-all" data-currency="GBP">£ GBP</button>
               <button class="currency-btn px-2.5 py-1 rounded-lg font-label-caps text-label-caps font-semibold text-on-surface-variant hover:text-on-surface transition-all" data-currency="JPY">¥ JPY</button>
@@ -541,11 +527,12 @@
             </div>
           </div>
 
-          <!-- Desktop Data Table -->
+          <!-- Desktop Data Table with Paid/Addressed Checklist -->
           <div class="overflow-x-auto rounded-xl bg-surface-container-lowest/70">
             <table class="w-full text-left border-collapse" id="expensesTable">
               <thead>
                 <tr class="bg-surface-container-high/40 text-on-surface-variant font-label-caps text-label-caps uppercase tracking-wider">
+                  <th class="py-3 px-space-xs text-center" title="Paid / Addressed Checklist">Paid</th>
                   <th class="py-3 px-space-md">Expense &amp; Vendor</th>
                   <th class="py-3 px-space-sm">Category</th>
                   <th class="py-3 px-space-sm">Cadence</th>

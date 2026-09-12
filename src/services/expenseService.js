@@ -21,7 +21,8 @@ export const INITIAL_SEED_EXPENSES = [
     amount: 6.50,
     dueDate: "Daily (Recurring)",
     paymentMethod: "Apple Pay (••8492)",
-    note: "Daily Roastery espresso"
+    note: "Daily Roastery espresso",
+    status: "addressed"
   },
   {
     title: "Whole Foods Market",
@@ -30,7 +31,8 @@ export const INITIAL_SEED_EXPENSES = [
     amount: 142.30,
     dueDate: "Every Sunday",
     paymentMethod: "Amex Gold (••1004)",
-    note: "Weekly organic pantry"
+    note: "Weekly organic pantry",
+    status: "addressed"
   },
   {
     title: "Uber Transit & Commute",
@@ -39,7 +41,8 @@ export const INITIAL_SEED_EXPENSES = [
     amount: 34.20,
     dueDate: "Weekly avg",
     paymentMethod: "Chase Sapphire (••3011)",
-    note: "Weekly city travel"
+    note: "Weekly city travel",
+    status: "pending"
   },
   {
     title: "Studio Apartment Lease",
@@ -48,7 +51,8 @@ export const INITIAL_SEED_EXPENSES = [
     amount: 2400.00,
     dueDate: "1st of month",
     paymentMethod: "ACH Direct Debit",
-    note: "Primary residential rent"
+    note: "Primary residential rent",
+    status: "addressed"
   },
   {
     title: "Figma Enterprise Org",
@@ -57,7 +61,8 @@ export const INITIAL_SEED_EXPENSES = [
     amount: 45.00,
     dueDate: "Dec 01, 2024",
     paymentMethod: "Amex Corp (••9901)",
-    note: "Design system & seats"
+    note: "Design system & seats",
+    status: "pending"
   },
   {
     title: "Equinox Fitness Club",
@@ -66,7 +71,8 @@ export const INITIAL_SEED_EXPENSES = [
     amount: 280.00,
     dueDate: "Dec 08, 2024",
     paymentMethod: "Chase Sapphire (••3011)",
-    note: "Tier X All-Access club"
+    note: "Tier X All-Access club",
+    status: "pending"
   },
   {
     title: "Claude Pro Subscription",
@@ -75,7 +81,8 @@ export const INITIAL_SEED_EXPENSES = [
     amount: 20.00,
     dueDate: "Dec 14, 2024",
     paymentMethod: "Apple Pay (••8492)",
-    note: "AI research workflow"
+    note: "AI research workflow",
+    status: "addressed"
   },
   {
     title: "Apple Developer Program",
@@ -84,7 +91,8 @@ export const INITIAL_SEED_EXPENSES = [
     amount: 99.00,
     dueDate: "Jul 18, 2025",
     paymentMethod: "Apple Card (••2910)",
-    note: "Annual iOS / macOS distribution"
+    note: "Annual iOS / macOS distribution",
+    status: "addressed"
   },
   {
     title: "Annual Auto Insurance",
@@ -93,7 +101,8 @@ export const INITIAL_SEED_EXPENSES = [
     amount: 1450.00,
     dueDate: "Mar 22, 2025",
     paymentMethod: "ACH Escrow Vault",
-    note: "Geico comprehensive policy"
+    note: "Geico comprehensive policy",
+    status: "addressed"
   },
   {
     title: "JetBrains All Products Pack",
@@ -102,13 +111,13 @@ export const INITIAL_SEED_EXPENSES = [
     amount: 289.00,
     dueDate: "Oct 11, 2025",
     paymentMethod: "Amex Corp (••9901)",
-    note: "Annual IDE workstation suite"
+    note: "Annual IDE workstation suite",
+    status: "pending"
   }
 ];
 
 let activeVault = 'primary_expenses';
 
-// Fallback in-memory store
 let localExpenses = INITIAL_SEED_EXPENSES.map((item, index) => ({
   id: 'local_' + (index + 1),
   ...item,
@@ -129,9 +138,6 @@ export function getActiveVault() {
   return activeVault;
 }
 
-/**
- * Subscribes to real-time expense updates from Firestore.
- */
 export function subscribeToExpenses(onUpdate) {
   const collectionRef = collection(db, activeVault);
   
@@ -176,9 +182,6 @@ export function subscribeToExpenses(onUpdate) {
   }
 }
 
-/**
- * Adds a new expense document to Firestore or fallback store.
- */
 export async function addExpenseDoc(expenseData) {
   const payload = {
     title: expenseData.title,
@@ -188,6 +191,7 @@ export async function addExpenseDoc(expenseData) {
     dueDate: expenseData.dueDate || 'Pending',
     paymentMethod: expenseData.paymentMethod || 'Amex Corp (••9901)',
     note: expenseData.note || `${expenseData.category} Entry`,
+    status: expenseData.status || 'addressed',
     userId: getCurrentUserId(),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
@@ -210,9 +214,6 @@ export async function addExpenseDoc(expenseData) {
   }
 }
 
-/**
- * Updates an existing expense document in Firestore or fallback store.
- */
 export async function updateExpenseDoc(id, updateData) {
   const payload = {
     ...updateData,
@@ -230,9 +231,19 @@ export async function updateExpenseDoc(id, updateData) {
   }
 }
 
-/**
- * Deletes an expense document from Firestore or fallback store.
- */
+export async function toggleExpenseStatusDoc(id, currentStatus) {
+  const newStatus = currentStatus === 'addressed' ? 'pending' : 'addressed';
+  try {
+    const docRef = doc(db, activeVault, id);
+    await updateDoc(docRef, { status: newStatus, updatedAt: serverTimestamp() });
+  } catch (err) {
+    console.warn('Toggling expense status failed, updating local store:', err.message);
+    localExpenses = localExpenses.map(item => item.id === id ? { ...item, status: newStatus } : item);
+    notifyLocalListeners();
+  }
+  return newStatus;
+}
+
 export async function deleteExpenseDoc(id) {
   try {
     const docRef = doc(db, activeVault, id);
@@ -244,9 +255,6 @@ export async function deleteExpenseDoc(id) {
   }
 }
 
-/**
- * Clears all expenses from active vault.
- */
 export async function clearAllExpenses() {
   try {
     const collectionRef = collection(db, activeVault);
@@ -263,9 +271,6 @@ export async function clearAllExpenses() {
   }
 }
 
-/**
- * Reseeds sample dataset into active vault.
- */
 export async function reseedExpenses() {
   await clearAllExpenses();
   const collectionRef = collection(db, activeVault);
