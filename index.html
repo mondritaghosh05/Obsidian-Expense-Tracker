@@ -159,8 +159,8 @@
       <button class="w-8 h-8 rounded-lg flex items-center justify-center bg-surface-container-low/60 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" id="exportCsvBtn" title="Export Ledger CSV">
         <span class="material-symbols-outlined text-[18px]">download</span>
       </button>
-      <button class="w-8 h-8 rounded-lg flex items-center justify-center bg-surface-container-low/60 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" id="resetLedgerBtn" title="Reload Sample Dataset">
-        <span class="material-symbols-outlined text-[18px]">restart_alt</span>
+      <button class="w-8 h-8 rounded-lg flex items-center justify-center bg-surface-container-low/60 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" id="resetLedgerBtn" title="Clear All Expenses">
+        <span class="material-symbols-outlined text-[18px]">delete_sweep</span>
       </button>
       <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-[0_0_12px_rgba(0,242,254,0.3)] cursor-pointer" title="User Profile">
         <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
@@ -211,6 +211,8 @@
         </button>
       </nav>
     </div>
+
+    <!-- Bottom Left User Profile Switcher Area -->
     <div class="flex flex-col gap-space-sm pt-space-md">
       <div class="flex items-center justify-between p-space-sm rounded-xl bg-surface-container-low/50 backdrop-blur-md">
         <div class="flex items-center gap-space-xs">
@@ -219,15 +221,20 @@
         </div>
         <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface-variant">v2.8.4</span>
       </div>
-      <div class="flex items-center justify-between p-space-sm rounded-xl bg-surface-container-low/70 hover:bg-surface-container-high transition-colors cursor-pointer">
-        <div class="flex items-center gap-space-sm">
-          <div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center font-title-md text-title-md text-primary font-bold">AM</div>
-          <div class="flex flex-col text-left">
-            <span class="font-title-md text-title-md text-on-surface font-medium leading-tight">Alex Mercer</span>
-            <span class="font-body-sm text-body-sm text-on-surface-variant leading-tight">Pro Quantitative</span>
+
+      <!-- Interactive User Switcher Card -->
+      <div class="flex items-center justify-between p-space-sm rounded-xl bg-surface-container-low/70 hover:bg-surface-container-high transition-colors relative">
+        <div class="flex items-center gap-space-sm w-full">
+          <div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center font-title-md text-title-md text-primary font-bold flex-shrink-0" id="userAvatarInitials">AM</div>
+          <div class="flex flex-col text-left flex-1 min-w-0">
+            <select id="userProfileSelect" class="bg-transparent border-none outline-none font-title-md text-title-md text-on-surface font-medium leading-tight w-full cursor-pointer">
+              <option value="alex" class="bg-surface-container-high text-on-surface">Alex Mercer</option>
+              <option value="test" class="bg-surface-container-high text-on-surface">Test User (Demo)</option>
+              <option value="finance" class="bg-surface-container-high text-on-surface">Finance Lead</option>
+            </select>
+            <span class="font-body-sm text-body-sm text-on-surface-variant leading-tight truncate" id="userRoleDisplay">Pro Quantitative</span>
           </div>
         </div>
-        <span class="material-symbols-outlined text-on-surface-variant text-[18px]">more_vert</span>
       </div>
     </div>
   </aside>
@@ -462,28 +469,28 @@
                   <span class="w-2.5 h-2.5 rounded-full bg-primary-container"></span>
                   <span class="text-on-surface">Housing &amp; Living</span>
                 </div>
-                <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface font-semibold" id="pctHousing">42%</span>
+                <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface font-semibold" id="pctHousing">0%</span>
               </button>
               <button class="cat-filter-btn flex items-center justify-between py-1 px-2 rounded-lg border-b border-surface-container-high/60 hover:bg-surface-container-high/50 transition-colors w-full text-left" data-category="Software">
                 <div class="flex items-center gap-2">
                   <span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
                   <span class="text-on-surface">Software &amp; Cloud</span>
                 </div>
-                <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface font-semibold" id="pctSoftware">24%</span>
+                <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface font-semibold" id="pctSoftware">0%</span>
               </button>
               <button class="cat-filter-btn flex items-center justify-between py-1 px-2 rounded-lg border-b border-surface-container-high/60 hover:bg-surface-container-high/50 transition-colors w-full text-left" data-category="Dining">
                 <div class="flex items-center gap-2">
                   <span class="w-2.5 h-2.5 rounded-full bg-tertiary-container"></span>
                   <span class="text-on-surface">Dining &amp; Provisions</span>
                 </div>
-                <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface font-semibold" id="pctDining">18%</span>
+                <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface font-semibold" id="pctDining">0%</span>
               </button>
               <button class="cat-filter-btn flex items-center justify-between py-1 px-2 rounded-lg hover:bg-surface-container-high/50 transition-colors w-full text-left" data-category="Transit">
                 <div class="flex items-center gap-2">
                   <span class="w-2.5 h-2.5 rounded-full bg-error"></span>
                   <span class="text-on-surface">Transit &amp; Mobility</span>
                 </div>
-                <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface font-semibold" id="pctTransit">10%</span>
+                <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface font-semibold" id="pctTransit">0%</span>
               </button>
             </div>
           </div>
@@ -501,9 +508,11 @@
               <h2 class="font-headline-md text-headline-md text-on-surface font-bold">Comprehensive Expense Directory</h2>
             </div>
             <div class="flex flex-wrap items-center gap-space-sm">
-              <!-- Segmented Tab Controls -->
-              <div class="flex items-center p-1 rounded-xl bg-surface-container-lowest/90 shadow-inner" id="ledgerTabs">
-                <button class="ledger-tab px-3 py-1.5 rounded-lg font-label-caps text-label-caps font-semibold bg-surface-container-highest text-on-surface shadow-sm transition-all" data-filter="all">All Expenses</button>
+              <!-- Segmented Tab Controls (All, Completed, Scheduled, Regular, Monthly, Yearly) -->
+              <div class="flex items-center p-1 rounded-xl bg-surface-container-lowest/90 shadow-inner overflow-x-auto" id="ledgerTabs">
+                <button class="ledger-tab px-3 py-1.5 rounded-lg font-label-caps text-label-caps font-semibold bg-surface-container-highest text-on-surface shadow-sm transition-all" data-filter="all">All</button>
+                <button class="ledger-tab px-3 py-1.5 rounded-lg font-label-caps text-label-caps font-semibold text-on-surface-variant hover:text-on-surface transition-all" data-filter="completed">Completed</button>
+                <button class="ledger-tab px-3 py-1.5 rounded-lg font-label-caps text-label-caps font-semibold text-on-surface-variant hover:text-on-surface transition-all" data-filter="scheduled">Future / Scheduled</button>
                 <button class="ledger-tab px-3 py-1.5 rounded-lg font-label-caps text-label-caps font-semibold text-on-surface-variant hover:text-on-surface transition-all" data-filter="regular">Regular</button>
                 <button class="ledger-tab px-3 py-1.5 rounded-lg font-label-caps text-label-caps font-semibold text-on-surface-variant hover:text-on-surface transition-all" data-filter="monthly">Monthly</button>
                 <button class="ledger-tab px-3 py-1.5 rounded-lg font-label-caps text-label-caps font-semibold text-on-surface-variant hover:text-on-surface transition-all" data-filter="yearly">Yearly</button>
@@ -527,15 +536,15 @@
             </div>
           </div>
 
-          <!-- Desktop Data Table with Paid/Addressed Checklist -->
+          <!-- Desktop Data Table (Paid Checkbox Column Removed) -->
           <div class="overflow-x-auto rounded-xl bg-surface-container-lowest/70">
             <table class="w-full text-left border-collapse" id="expensesTable">
               <thead>
                 <tr class="bg-surface-container-high/40 text-on-surface-variant font-label-caps text-label-caps uppercase tracking-wider">
-                  <th class="py-3 px-space-xs text-center" title="Paid / Addressed Checklist">Paid</th>
                   <th class="py-3 px-space-md">Expense &amp; Vendor</th>
                   <th class="py-3 px-space-sm">Category</th>
                   <th class="py-3 px-space-sm">Cadence</th>
+                  <th class="py-3 px-space-sm">Type</th>
                   <th class="py-3 px-space-sm">Cycle / Due Date</th>
                   <th class="py-3 px-space-sm text-right">Amount (Active)</th>
                   <th class="py-3 px-space-sm text-right">Base (USD)</th>
@@ -563,7 +572,7 @@
             <span class="material-symbols-outlined text-[18px]">post_add</span>
           </div>
           <div>
-            <h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold" id="modalHeading">Add Scheduled Expense</h3>
+            <h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold" id="modalHeading">Log Expense Outflow</h3>
             <span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Cloud Firestore Vault Record</span>
           </div>
         </div>
@@ -576,7 +585,15 @@
           <label class="font-label-caps text-label-caps text-on-surface uppercase font-semibold">Expense Title / Vendor</label>
           <input class="px-space-md py-2 rounded-xl bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant outline-none focus:ring-1 focus:ring-primary-container font-body-md text-body-md" id="inputTitle" placeholder="e.g. AWS Cloud Infrastructure" required="" type="text"/>
         </div>
+
         <div class="grid grid-cols-2 gap-space-md">
+          <div class="flex flex-col gap-1">
+            <label class="font-label-caps text-label-caps text-on-surface uppercase font-semibold">Expense Type</label>
+            <select class="px-space-md py-2 rounded-xl bg-surface-container-lowest text-on-surface outline-none focus:ring-1 focus:ring-primary-container font-body-md text-body-md" id="inputType">
+              <option value="completed">Completed Expense (Paid)</option>
+              <option value="scheduled">Future / Scheduled Outflow</option>
+            </select>
+          </div>
           <div class="flex flex-col gap-1">
             <label class="font-label-caps text-label-caps text-on-surface uppercase font-semibold">Category</label>
             <select class="px-space-md py-2 rounded-xl bg-surface-container-lowest text-on-surface outline-none focus:ring-1 focus:ring-primary-container font-body-md text-body-md" id="inputCategory">
@@ -590,6 +607,9 @@
               <option value="Dev Ops">Dev Ops</option>
             </select>
           </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-space-md">
           <div class="flex flex-col gap-1">
             <label class="font-label-caps text-label-caps text-on-surface uppercase font-semibold">Frequency (Cadence)</label>
             <select class="px-space-md py-2 rounded-xl bg-surface-container-lowest text-on-surface outline-none focus:ring-1 focus:ring-primary-container font-body-md text-body-md" id="inputCadence">
@@ -598,8 +618,6 @@
               <option value="yearly">Yearly Commitment</option>
             </select>
           </div>
-        </div>
-        <div class="grid grid-cols-2 gap-space-md">
           <div class="flex flex-col gap-1">
             <label class="font-label-caps text-label-caps text-on-surface uppercase font-semibold">Amount (USD Base)</label>
             <div class="relative flex items-center">
@@ -607,23 +625,27 @@
               <input class="pl-7 pr-space-md py-2 w-full rounded-xl bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant outline-none focus:ring-1 focus:ring-primary-container font-label-numeric-md text-label-numeric-md" id="inputAmount" placeholder="0.00" required="" step="0.01" type="number"/>
             </div>
           </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-space-md">
           <div class="flex flex-col gap-1">
             <label class="font-label-caps text-label-caps text-on-surface uppercase font-semibold">Due / Billing Day</label>
             <input class="px-space-md py-2 rounded-xl bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant outline-none focus:ring-1 focus:ring-primary-container font-body-md text-body-md" id="inputDate" placeholder="e.g. 1st of month" type="text"/>
           </div>
+          <div class="flex flex-col gap-1">
+            <label class="font-label-caps text-label-caps text-on-surface uppercase font-semibold">Payment Source</label>
+            <select class="px-space-md py-2 rounded-xl bg-surface-container-lowest text-on-surface outline-none focus:ring-1 focus:ring-primary-container font-body-md text-body-md" id="inputMethod">
+              <option>Amex Corp (••9901)</option>
+              <option>Chase Sapphire (••3011)</option>
+              <option>Apple Pay (••8492)</option>
+              <option>Amex Gold (••1004)</option>
+              <option>Apple Card (••2910)</option>
+              <option>ACH Direct Debit</option>
+              <option>ACH Escrow Vault</option>
+            </select>
+          </div>
         </div>
-        <div class="flex flex-col gap-1">
-          <label class="font-label-caps text-label-caps text-on-surface uppercase font-semibold">Payment Source</label>
-          <select class="px-space-md py-2 rounded-xl bg-surface-container-lowest text-on-surface outline-none focus:ring-1 focus:ring-primary-container font-body-md text-body-md" id="inputMethod">
-            <option>Amex Corp (••9901)</option>
-            <option>Chase Sapphire (••3011)</option>
-            <option>Apple Pay (••8492)</option>
-            <option>Amex Gold (••1004)</option>
-            <option>Apple Card (••2910)</option>
-            <option>ACH Direct Debit</option>
-            <option>ACH Escrow Vault</option>
-          </select>
-        </div>
+
         <div class="flex items-center justify-end gap-space-sm pt-space-md border-t border-surface-container-highest">
           <button class="px-space-md py-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest font-title-md text-title-md transition-colors" id="cancelModalBtn" type="button">Cancel</button>
           <button class="px-space-lg py-2 rounded-xl bg-primary-container text-on-primary-container font-title-md text-title-md font-bold shadow-lg hover:shadow-cyan-500/25 transition-all" type="submit">Record Expense</button>

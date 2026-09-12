@@ -7,6 +7,7 @@ import {
   doc, 
   serverTimestamp,
   query,
+  where,
   orderBy,
   getDocs,
   writeBatch
@@ -18,7 +19,9 @@ let localExpenses = [];
 let listeners = [];
 
 function notifyLocalListeners() {
-  listeners.forEach(cb => cb(localExpenses));
+  const currentUserId = getCurrentUserId();
+  const userFiltered = localExpenses.filter(e => e.userId === currentUserId);
+  listeners.forEach(cb => cb(userFiltered));
 }
 
 export function setActiveVault(vaultName) {
@@ -30,14 +33,19 @@ export function getActiveVault() {
 }
 
 /**
- * Subscribes to real-time expense updates from Firestore.
- * Does NOT auto-seed sample data. Stays completely empty until user logs an expense.
+ * Subscribes to real-time expense updates for the current active user profile.
  */
 export function subscribeToExpenses(onUpdate) {
   const collectionRef = collection(db, activeVault);
+  const currentUserId = getCurrentUserId();
   
   try {
-    const q = query(collectionRef, orderBy('createdAt', 'desc'));
+    const q = query(
+      collectionRef, 
+      where('userId', '==', currentUserId),
+      orderBy('createdAt', 'desc')
+    );
+    
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map(docSnap => ({
         id: docSnap.id,
@@ -45,16 +53,16 @@ export function subscribeToExpenses(onUpdate) {
       }));
       onUpdate(items);
     }, (error) => {
-      console.warn('Firestore snapshot listener notice:', error.message);
+      console.warn('Firestore snapshot listener notice (offline fallback):', error.message);
       listeners.push(onUpdate);
-      onUpdate(localExpenses);
+      notifyLocalListeners();
     });
 
     return unsubscribe;
   } catch (err) {
-    console.warn('Using local reactive store fallback:', err.message);
+    console.warn('Using local store fallback:', err.message);
     listeners.push(onUpdate);
-    onUpdate(localExpenses);
+    notifyLocalListeners();
     return () => {
       listeners = listeners.filter(l => l !== onUpdate);
     };
@@ -62,7 +70,7 @@ export function subscribeToExpenses(onUpdate) {
 }
 
 /**
- * Adds a new user-logged expense document to Firestore or local store.
+ * Adds a new user-logged expense document (completed or future/scheduled).
  */
 export async function addExpenseDoc(expenseData) {
   const payload = {
@@ -70,10 +78,10 @@ export async function addExpenseDoc(expenseData) {
     category: expenseData.category,
     cadence: expenseData.cadence,
     amount: parseFloat(expenseData.amount),
+    type: expenseData.type || 'completed', // 'completed' vs 'scheduled'
     dueDate: expenseData.dueDate || 'Pending',
     paymentMethod: expenseData.paymentMethod || 'Amex Corp (••9901)',
     note: expenseData.note || `${expenseData.category} Entry`,
-    status: expenseData.status || 'addressed',
     userId: getCurrentUserId(),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
@@ -100,6 +108,7 @@ export async function updateExpenseDoc(id, updateData) {
   const payload = {
     ...updateData,
     amount: parseFloat(updateData.amount),
+    type: updateData.type || 'completed',
     updatedAt: serverTimestamp()
   };
 
@@ -111,19 +120,6 @@ export async function updateExpenseDoc(id, updateData) {
     localExpenses = localExpenses.map(item => item.id === id ? { ...item, ...payload } : item);
     notifyLocalListeners();
   }
-}
-
-export async function toggleExpenseStatusDoc(id, currentStatus) {
-  const newStatus = currentStatus === 'addressed' ? 'pending' : 'addressed';
-  try {
-    const docRef = doc(db, activeVault, id);
-    await updateDoc(docRef, { status: newStatus, updatedAt: serverTimestamp() });
-  } catch (err) {
-    console.warn('Toggling expense status failed, updating local store:', err.message);
-    localExpenses = localExpenses.map(item => item.id === id ? { ...item, status: newStatus } : item);
-    notifyLocalListeners();
-  }
-  return newStatus;
 }
 
 export async function deleteExpenseDoc(id) {
@@ -138,9 +134,11 @@ export async function deleteExpenseDoc(id) {
 }
 
 export async function clearAllExpenses() {
+  const currentUserId = getCurrentUserId();
   try {
     const collectionRef = collection(db, activeVault);
-    const snapshot = await getDocs(collectionRef);
+    const q = query(collectionRef, where('userId', '==', currentUserId));
+    const snapshot = await getDocs(q);
     const batch = writeBatch(db);
     snapshot.docs.forEach(docSnap => {
       batch.delete(docSnap.ref);
@@ -148,7 +146,7 @@ export async function clearAllExpenses() {
     await batch.commit();
   } catch (err) {
     console.warn('Clearing Firestore vault failed, clearing local store:', err.message);
-    localExpenses = [];
+    localExpenses = localExpenses.filter(e => e.userId !== currentUserId);
     notifyLocalListeners();
   }
 }

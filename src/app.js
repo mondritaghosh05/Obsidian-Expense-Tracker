@@ -1,10 +1,14 @@
-import { initAuth } from './firebase.js';
+import { 
+  initAuth, 
+  getActiveUser, 
+  setActiveUser, 
+  USER_PROFILES 
+} from './firebase.js';
 import { 
   subscribeToExpenses, 
   addExpenseDoc, 
   updateExpenseDoc, 
   deleteExpenseDoc,
-  toggleExpenseStatusDoc,
   clearAllExpenses,
   setActiveVault
 } from './services/expenseService.js';
@@ -17,11 +21,12 @@ import {
 } from './services/fxService.js';
 
 let allExpenses = [];
-let currentFilter = 'all';
+let currentFilter = 'all'; // 'all', 'completed', 'scheduled', 'regular', 'monthly', 'yearly'
 let selectedCategoryFilter = null;
 let searchQuery = '';
 let editingExpenseId = null;
 let lastSavedId = null;
+let unsubscribeExpenses = null;
 
 let targetMonthlyBudgetUsd = parseFloat(localStorage.getItem('obsidian_target_budget') || '15000');
 
@@ -59,6 +64,11 @@ const headerSearchInput = document.getElementById('headerSearchInput');
 const baseCurrencySelect = document.getElementById('baseCurrencySelect');
 const fxTickerContainer = document.getElementById('fxTickerContainer');
 
+const userProfileSelect = document.getElementById('userProfileSelect');
+const userAvatarInitials = document.getElementById('userAvatarInitials');
+const userNameDisplay = document.getElementById('userNameDisplay');
+const userRoleDisplay = document.getElementById('userRoleDisplay');
+
 const expenseModal = document.getElementById('expenseModal');
 const openAddModalBtn = document.getElementById('openAddModalBtn');
 const closeModalBtn = document.getElementById('closeModalBtn');
@@ -86,6 +96,7 @@ function showToast(msg) {
   }, 2500);
 }
 
+// Render Top FX Rate Ticker
 function updateFxTickerUI() {
   if (!fxTickerContainer) return;
   const pairs = getFxTickerPairs();
@@ -99,6 +110,16 @@ function updateFxTickerUI() {
   `).join('');
 }
 
+// Update User Profile UI
+function updateUserProfileUI() {
+  const user = getActiveUser();
+  if (userAvatarInitials) userAvatarInitials.textContent = user.initials;
+  if (userNameDisplay) userNameDisplay.textContent = user.name;
+  if (userRoleDisplay) userRoleDisplay.textContent = user.role;
+  if (userProfileSelect) userProfileSelect.value = localStorage.getItem('obsidian_active_user') || 'alex';
+}
+
+// Update Metrics & Budget Status
 function updateMetrics() {
   let regularUsdMonthly = 0;
   let monthlyUsdFixed = 0;
@@ -257,7 +278,7 @@ function updateVelocityGraph() {
 
   if (graphStatus) {
     if (allExpenses.length === 0) {
-      graphStatus.textContent = 'Vault Empty - Ready for expenses';
+      graphStatus.textContent = `${getActiveUser().name} Ledger Empty - Ready for expenses`;
       graphStatus.className = 'font-label-numeric-sm text-label-numeric-sm text-on-surface-variant font-medium';
     } else {
       const delta = Math.round(((targetMonthlyBudgetUsd - monthlySumUsd) / targetMonthlyBudgetUsd) * 100);
@@ -272,11 +293,20 @@ function updateVelocityGraph() {
   }
 }
 
+// Render Directory Table
 function renderTable() {
   if (!expenseRowsContainer) return;
 
   const filtered = allExpenses.filter(exp => {
-    const matchesTab = (currentFilter === 'all' || exp.cadence === currentFilter);
+    let matchesTab = true;
+    if (currentFilter === 'regular' || currentFilter === 'monthly' || currentFilter === 'yearly') {
+      matchesTab = (exp.cadence === currentFilter);
+    } else if (currentFilter === 'completed') {
+      matchesTab = (exp.type === 'completed' || !exp.type);
+    } else if (currentFilter === 'scheduled') {
+      matchesTab = (exp.type === 'scheduled');
+    }
+
     const matchesCat = !selectedCategoryFilter || exp.category.toLowerCase().includes(selectedCategoryFilter.toLowerCase());
     
     const q = searchQuery.toLowerCase();
@@ -292,12 +322,12 @@ function renderTable() {
 
   if (filtered.length === 0) {
     const emptyMsg = allExpenses.length === 0 
-      ? 'Your ledger is empty. Click "+ New Expense" to log your first expense entry!' 
+      ? `Ledger for ${getActiveUser().name} is empty. Click "+ New Expense" to log an expense!` 
       : 'No matching expense entries found in current view.';
 
     expenseRowsContainer.innerHTML = `
       <tr>
-        <td colspan="9" class="py-12 text-center text-on-surface-variant font-body-md">
+        <td colspan="8" class="py-12 text-center text-on-surface-variant font-body-md">
           <div class="flex flex-col items-center gap-3">
             <span class="material-symbols-outlined text-[36px] text-primary">post_add</span>
             <span class="text-on-surface font-semibold text-title-md">${emptyMsg}</span>
@@ -312,7 +342,7 @@ function renderTable() {
     const style = getCategoryStyle(exp.category);
     const activeAmt = formatCurrency(parseFloat(exp.amount) || 0);
     const baseUsd = '$' + (parseFloat(exp.amount) || 0).toFixed(2);
-    const isAddressed = exp.status === 'addressed';
+    const isScheduled = exp.type === 'scheduled';
     
     let cadenceBadge = '';
     if (exp.cadence === 'regular') {
@@ -323,23 +353,21 @@ function renderTable() {
       cadenceBadge = '<span class="px-2 py-0.5 rounded-md font-label-caps text-label-caps font-semibold bg-tertiary-container/40 text-on-surface">Yearly</span>';
     }
 
+    const typeBadge = isScheduled
+      ? `<span class="px-2 py-0.5 rounded-full font-label-caps text-label-caps font-semibold bg-primary-container/20 text-primary-container flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">schedule</span>Scheduled</span>`
+      : `<span class="px-2 py-0.5 rounded-full font-label-caps text-label-caps font-semibold bg-secondary/15 text-secondary flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">check_circle</span>Completed</span>`;
+
     const isJustSaved = exp.id === lastSavedId;
     const highlightClasses = isJustSaved ? 'bg-primary-container/20 ring-1 ring-primary-container' : '';
 
     return `
-      <tr class="expense-row group hover:bg-surface-container-high/30 transition-all duration-300 ${highlightClasses} ${isAddressed ? 'opacity-90' : ''}" data-id="${exp.id}">
-        <td class="py-3.5 px-space-xs text-center">
-          <button class="status-toggle-btn w-6 h-6 rounded-md border flex items-center justify-center transition-all ${isAddressed ? 'bg-secondary border-secondary text-surface-container-lowest' : 'border-outline-variant hover:border-primary text-transparent'}" data-id="${exp.id}" data-status="${exp.status || 'pending'}" title="${isAddressed ? 'Mark Pending' : 'Mark Addressed / Paid'}">
-            <span class="material-symbols-outlined text-[14px] font-bold">check</span>
-          </button>
-        </td>
-
+      <tr class="expense-row group hover:bg-surface-container-high/30 transition-all duration-300 ${highlightClasses}" data-id="${exp.id}">
         <td class="py-3.5 px-space-md flex items-center gap-space-sm">
           <div class="w-7 h-7 rounded-lg bg-surface-container-highest flex items-center justify-center ${style.iconColor}">
             <span class="material-symbols-outlined text-[16px]">${style.icon}</span>
           </div>
           <div class="flex flex-col">
-            <span class="font-title-md text-title-md ${isAddressed ? 'line-through text-on-surface-variant' : 'text-on-surface'} font-medium">${exp.title}</span>
+            <span class="font-title-md text-title-md text-on-surface font-medium">${exp.title}</span>
             <span class="font-body-sm text-body-sm text-on-surface-variant">${exp.note || exp.category + ' Entry'}</span>
           </div>
         </td>
@@ -348,6 +376,9 @@ function renderTable() {
         </td>
         <td class="py-3.5 px-space-sm">
           ${cadenceBadge}
+        </td>
+        <td class="py-3.5 px-space-sm">
+          ${typeBadge}
         </td>
         <td class="py-3.5 px-space-sm font-label-numeric-sm text-label-numeric-sm text-on-surface-variant">${exp.dueDate || 'Pending'}</td>
         <td class="py-3.5 px-space-sm text-right font-label-numeric-md text-label-numeric-md font-bold text-on-surface active-amount">${activeAmt}</td>
@@ -382,6 +413,7 @@ function renderTable() {
 }
 
 function updateUI() {
+  updateUserProfileUI();
   updateFxTickerUI();
   updateMetrics();
   updateDonutChart();
@@ -395,14 +427,14 @@ function exportToCSV() {
     return;
   }
 
-  const headers = ['ID', 'Title', 'Category', 'Cadence', 'Amount_USD', 'Status', 'DueDate', 'PaymentMethod', 'Note'];
+  const headers = ['ID', 'Title', 'Category', 'Cadence', 'Type', 'Amount_USD', 'DueDate', 'PaymentMethod', 'Note'];
   const rows = allExpenses.map(e => [
     `"${e.id}"`,
     `"${e.title.replace(/"/g, '""')}"`,
     `"${e.category}"`,
     `"${e.cadence}"`,
+    `"${e.type || 'completed'}"`,
     e.amount,
-    `"${e.status || 'addressed'}"`,
     `"${e.dueDate || ''}"`,
     `"${e.paymentMethod || ''}"`,
     `"${(e.note || '').replace(/"/g, '""')}"`
@@ -412,12 +444,12 @@ function exportToCSV() {
   const encodedUri = encodeURI(csvContent);
   const link = document.createElement('a');
   link.setAttribute('href', encodedUri);
-  link.setAttribute('download', `obsidian_ledger_export_${new Date().toISOString().slice(0, 10)}.csv`);
+  link.setAttribute('download', `obsidian_${getActiveUser().id}_ledger_${new Date().toISOString().slice(0, 10)}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
 
-  showToast('Exported ledger CSV to downloads');
+  showToast(`Exported ${getActiveUser().name}'s ledger CSV`);
 }
 
 function openModal(editId = null) {
@@ -428,16 +460,17 @@ function openModal(editId = null) {
   if (editId) {
     const item = allExpenses.find(e => e.id === editId);
     if (item) {
-      if (modalHeading) modalHeading.textContent = 'Edit Ledger Expense';
+      if (modalHeading) modalHeading.textContent = 'Edit Expense Record';
       document.getElementById('inputTitle').value = item.title;
       document.getElementById('inputCategory').value = item.category;
       document.getElementById('inputCadence').value = item.cadence;
+      document.getElementById('inputType').value = item.type || 'completed';
       document.getElementById('inputAmount').value = item.amount;
       document.getElementById('inputDate').value = item.dueDate || '';
       document.getElementById('inputMethod').value = item.paymentMethod || 'Amex Corp (••9901)';
     }
   } else {
-    if (modalHeading) modalHeading.textContent = 'Add Scheduled Expense';
+    if (modalHeading) modalHeading.textContent = 'Log Expense Outflow';
     expenseForm.reset();
   }
 
@@ -468,7 +501,27 @@ function updateSidebarNavHighlight(activeNavTarget) {
   });
 }
 
+function loadUserExpenses() {
+  if (unsubscribeExpenses) unsubscribeExpenses();
+  unsubscribeExpenses = subscribeToExpenses((items) => {
+    allExpenses = items;
+    updateUI();
+  });
+}
+
 function setupEventListeners() {
+  // User Profile Switcher Listener
+  if (userProfileSelect) {
+    userProfileSelect.addEventListener('change', (e) => {
+      const selectedKey = e.target.value;
+      const newUser = setActiveUser(selectedKey);
+      updateUserProfileUI();
+      loadUserExpenses();
+      showToast(`Switched user profile to ${newUser.name}`);
+    });
+  }
+
+  // Base Currency Dropdown
   if (baseCurrencySelect) {
     baseCurrencySelect.addEventListener('change', (e) => {
       const newBase = e.target.value;
@@ -624,9 +677,9 @@ function setupEventListeners() {
 
   if (resetLedgerBtn) {
     resetLedgerBtn.addEventListener('click', async () => {
-      if (confirm('Clear all entries from active vault?')) {
+      if (confirm(`Clear all entries for ${getActiveUser().name}?`)) {
         await clearAllExpenses();
-        showToast('All vault expenses cleared');
+        showToast(`Cleared ${getActiveUser().name}'s expense ledger`);
       }
     });
   }
@@ -636,10 +689,7 @@ function setupEventListeners() {
     vaultSelector.addEventListener('change', (e) => {
       const selectedVault = e.target.value;
       setActiveVault(selectedVault);
-      subscribeToExpenses((items) => {
-        allExpenses = items;
-        updateUI();
-      });
+      loadUserExpenses();
       showToast(`Switched active vault to ${e.target.options[e.target.selectedIndex].text}`);
     });
   }
@@ -657,14 +707,6 @@ function setupEventListeners() {
     expenseRowsContainer.addEventListener('click', async (e) => {
       const editBtn = e.target.closest('.edit-btn');
       const deleteBtn = e.target.closest('.delete-btn');
-      const statusBtn = e.target.closest('.status-toggle-btn');
-
-      if (statusBtn) {
-        const id = statusBtn.getAttribute('data-id');
-        const currStatus = statusBtn.getAttribute('data-status');
-        const newStatus = await toggleExpenseStatusDoc(id, currStatus);
-        showToast(newStatus === 'addressed' ? 'Marked expense as Addressed / Paid' : 'Marked expense as Pending');
-      }
 
       if (editBtn) {
         const id = editBtn.getAttribute('data-id');
@@ -690,6 +732,7 @@ function setupEventListeners() {
       const title = document.getElementById('inputTitle').value;
       const category = document.getElementById('inputCategory').value;
       const cadence = document.getElementById('inputCadence').value;
+      const type = document.getElementById('inputType').value || 'completed';
       const amount = parseFloat(document.getElementById('inputAmount').value);
       const dueDate = document.getElementById('inputDate').value || 'Pending';
       const paymentMethod = document.getElementById('inputMethod').value;
@@ -698,10 +741,10 @@ function setupEventListeners() {
         title,
         category,
         cadence,
+        type,
         amount,
         dueDate,
-        paymentMethod,
-        status: 'addressed'
+        paymentMethod
       };
 
       if (editingExpenseId) {
@@ -711,10 +754,10 @@ function setupEventListeners() {
       } else {
         const newId = await addExpenseDoc(payload);
         lastSavedId = newId;
-        showToast(`Recorded new expense: ${title}`);
+        showToast(`Recorded ${type === 'scheduled' ? 'future scheduled' : 'completed'} expense: ${title}`);
       }
 
-      if (currentFilter !== 'all' && currentFilter !== cadence) {
+      if (currentFilter !== 'all') {
         currentFilter = 'all';
         const ledgerTabs = document.querySelectorAll('.ledger-tab');
         ledgerTabs.forEach(t => {
@@ -741,12 +784,9 @@ async function startApp() {
   console.log('Initializing Obsidian Expense Tracker...');
   await initAuth();
 
+  updateUserProfileUI();
   setupEventListeners();
-
-  subscribeToExpenses((items) => {
-    allExpenses = items;
-    updateUI();
-  });
+  loadUserExpenses();
 }
 
 document.addEventListener('DOMContentLoaded', startApp);
