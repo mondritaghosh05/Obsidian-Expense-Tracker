@@ -6,20 +6,18 @@ import {
   deleteExpenseDoc,
   toggleExpenseStatusDoc,
   clearAllExpenses,
-  reseedExpenses,
   setActiveVault
 } from './services/expenseService.js';
 import { 
   getActiveCurrency, 
   setActiveCurrency, 
   setBaseCurrency,
-  getBaseCurrency,
   getFxTickerPairs,
   formatCurrency 
 } from './services/fxService.js';
 
 let allExpenses = [];
-let currentFilter = 'all'; // 'all', 'regular', 'monthly', 'yearly'
+let currentFilter = 'all';
 let selectedCategoryFilter = null;
 let searchQuery = '';
 let editingExpenseId = null;
@@ -88,13 +86,12 @@ function showToast(msg) {
   }, 2500);
 }
 
-// Render Dynamic Top FX Exchange Rate Ticker
 function updateFxTickerUI() {
   if (!fxTickerContainer) return;
   const pairs = getFxTickerPairs();
 
   fxTickerContainer.innerHTML = pairs.map(p => `
-    <div class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-lowest/60 text-on-surface hover:bg-surface-container-lowest transition-colors cursor-pointer" title="Exchange Pair relative to Base">
+    <div class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-lowest/60 text-on-surface hover:bg-surface-container-lowest transition-colors cursor-pointer">
       <span class="text-on-surface-variant font-medium">${p.name}</span>
       <span class="font-semibold text-primary">${p.value}</span>
       <span class="${p.positive ? 'text-secondary' : 'text-error'} flex items-center text-[11px] font-semibold">${p.change}</span>
@@ -102,7 +99,6 @@ function updateFxTickerUI() {
   `).join('');
 }
 
-// Update Summary Metrics
 function updateMetrics() {
   let regularUsdMonthly = 0;
   let monthlyUsdFixed = 0;
@@ -149,7 +145,6 @@ function updateMetrics() {
   }
 }
 
-// Render Category Donut SVG Chart
 function updateDonutChart() {
   const categoryTotals = {
     Housing: 0,
@@ -171,13 +166,11 @@ function updateDonutChart() {
     grandTotal += amt;
   });
 
-  if (grandTotal === 0) grandTotal = 1;
-
-  const housingPct = Math.round((categoryTotals.Housing / grandTotal) * 100);
-  const softwarePct = Math.round((categoryTotals.Software / grandTotal) * 100);
-  const diningPct = Math.round((categoryTotals.Dining / grandTotal) * 100);
-  const transitPct = Math.round((categoryTotals.Transit / grandTotal) * 100);
-  const otherPct = Math.max(0, 100 - (housingPct + softwarePct + diningPct + transitPct));
+  const housingPct = grandTotal > 0 ? Math.round((categoryTotals.Housing / grandTotal) * 100) : 0;
+  const softwarePct = grandTotal > 0 ? Math.round((categoryTotals.Software / grandTotal) * 100) : 0;
+  const diningPct = grandTotal > 0 ? Math.round((categoryTotals.Dining / grandTotal) * 100) : 0;
+  const transitPct = grandTotal > 0 ? Math.round((categoryTotals.Transit / grandTotal) * 100) : 0;
+  const otherPct = grandTotal > 0 ? Math.max(0, 100 - (housingPct + softwarePct + diningPct + transitPct)) : 0;
 
   const housingEl = document.getElementById('pctHousing');
   const softwareEl = document.getElementById('pctSoftware');
@@ -203,7 +196,7 @@ function updateDonutChart() {
   circles.forEach(item => {
     const elem = document.getElementById(item.id);
     if (elem) {
-      const strokeLen = (item.pct / 100) * circ;
+      const strokeLen = grandTotal > 0 ? (item.pct / 100) * circ : 0;
       elem.setAttribute('stroke-dasharray', `${strokeLen.toFixed(1)} ${circ.toFixed(1)}`);
       elem.setAttribute('stroke-dashoffset', `-${offset.toFixed(1)}`);
       offset += strokeLen;
@@ -211,7 +204,6 @@ function updateDonutChart() {
   });
 }
 
-// Render Cashflow Velocity SVG Graph
 function updateVelocityGraph() {
   const cyanPath = document.getElementById('cyanGraphPath');
   const cyanArea = document.getElementById('cyanGraphArea');
@@ -264,18 +256,22 @@ function updateVelocityGraph() {
   if (emeraldArea) emeraldArea.setAttribute('d', dEmeraldArea);
 
   if (graphStatus) {
-    const delta = Math.round(((targetMonthlyBudgetUsd - monthlySumUsd) / targetMonthlyBudgetUsd) * 100);
-    if (delta >= 0) {
-      graphStatus.textContent = `${delta}% under annual burn target`;
-      graphStatus.className = 'font-label-numeric-sm text-label-numeric-sm text-secondary font-medium';
+    if (allExpenses.length === 0) {
+      graphStatus.textContent = 'Vault Empty - Ready for expenses';
+      graphStatus.className = 'font-label-numeric-sm text-label-numeric-sm text-on-surface-variant font-medium';
     } else {
-      graphStatus.textContent = `${Math.abs(delta)}% above burn ceiling`;
-      graphStatus.className = 'font-label-numeric-sm text-label-numeric-sm text-error font-medium';
+      const delta = Math.round(((targetMonthlyBudgetUsd - monthlySumUsd) / targetMonthlyBudgetUsd) * 100);
+      if (delta >= 0) {
+        graphStatus.textContent = `${delta}% under annual burn target`;
+        graphStatus.className = 'font-label-numeric-sm text-label-numeric-sm text-secondary font-medium';
+      } else {
+        graphStatus.textContent = `${Math.abs(delta)}% above burn ceiling`;
+        graphStatus.className = 'font-label-numeric-sm text-label-numeric-sm text-error font-medium';
+      }
     }
   }
 }
 
-// Render Ledger Directory Table
 function renderTable() {
   if (!expenseRowsContainer) return;
 
@@ -295,12 +291,16 @@ function renderTable() {
   if (displayedCount) displayedCount.textContent = filtered.length;
 
   if (filtered.length === 0) {
+    const emptyMsg = allExpenses.length === 0 
+      ? 'Your ledger is empty. Click "+ New Expense" to log your first expense entry!' 
+      : 'No matching expense entries found in current view.';
+
     expenseRowsContainer.innerHTML = `
       <tr>
-        <td colspan="9" class="py-8 text-center text-on-surface-variant font-body-md">
-          <div class="flex flex-col items-center gap-2">
-            <span class="material-symbols-outlined text-[32px]">folder_off</span>
-            <span>No matching expense entries found in current view.</span>
+        <td colspan="9" class="py-12 text-center text-on-surface-variant font-body-md">
+          <div class="flex flex-col items-center gap-3">
+            <span class="material-symbols-outlined text-[36px] text-primary">post_add</span>
+            <span class="text-on-surface font-semibold text-title-md">${emptyMsg}</span>
           </div>
         </td>
       </tr>
@@ -328,7 +328,6 @@ function renderTable() {
 
     return `
       <tr class="expense-row group hover:bg-surface-container-high/30 transition-all duration-300 ${highlightClasses} ${isAddressed ? 'opacity-90' : ''}" data-id="${exp.id}">
-        <!-- Paid / Addressed Checkbox -->
         <td class="py-3.5 px-space-xs text-center">
           <button class="status-toggle-btn w-6 h-6 rounded-md border flex items-center justify-center transition-all ${isAddressed ? 'bg-secondary border-secondary text-surface-container-lowest' : 'border-outline-variant hover:border-primary text-transparent'}" data-id="${exp.id}" data-status="${exp.status || 'pending'}" title="${isAddressed ? 'Mark Pending' : 'Mark Addressed / Paid'}">
             <span class="material-symbols-outlined text-[14px] font-bold">check</span>
@@ -372,7 +371,6 @@ function renderTable() {
     `;
   }).join('');
 
-  // Scroll to and focus saved row if available
   if (lastSavedId) {
     setTimeout(() => {
       const savedRow = document.querySelector(`.expense-row[data-id="${lastSavedId}"]`);
@@ -391,7 +389,6 @@ function updateUI() {
   renderTable();
 }
 
-// Export Ledger to CSV
 function exportToCSV() {
   if (allExpenses.length === 0) {
     showToast('No expenses available to export');
@@ -423,7 +420,6 @@ function exportToCSV() {
   showToast('Exported ledger CSV to downloads');
 }
 
-// Modal Handlers
 function openModal(editId = null) {
   editingExpenseId = editId;
   const activeCurr = getActiveCurrency();
@@ -460,7 +456,6 @@ function closeModal() {
   expenseForm.reset();
 }
 
-// Set Active Sidebar Navigation Style
 function updateSidebarNavHighlight(activeNavTarget) {
   const sidebarLinks = document.querySelectorAll('[data-nav]');
   sidebarLinks.forEach(link => {
@@ -473,16 +468,13 @@ function updateSidebarNavHighlight(activeNavTarget) {
   });
 }
 
-// Event Listeners Setup
 function setupEventListeners() {
-  // Base Currency Dropdown
   if (baseCurrencySelect) {
     baseCurrencySelect.addEventListener('change', (e) => {
       const newBase = e.target.value;
       setBaseCurrency(newBase);
       setActiveCurrency(newBase);
       
-      // Update active currency buttons UI
       const currencyButtons = document.querySelectorAll('.currency-btn');
       currencyButtons.forEach(b => {
         if (b.getAttribute('data-currency') === newBase) {
@@ -499,7 +491,6 @@ function setupEventListeners() {
     });
   }
 
-  // Active Currency Buttons
   const currencyButtons = document.querySelectorAll('.currency-btn');
   currencyButtons.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -517,7 +508,6 @@ function setupEventListeners() {
     });
   });
 
-  // Sidebar Navigation Routing
   const sidebarNavItems = document.querySelectorAll('[data-nav]');
   sidebarNavItems.forEach(item => {
     item.addEventListener('click', (e) => {
@@ -535,7 +525,6 @@ function setupEventListeners() {
         currentFilter = navTarget;
         selectedCategoryFilter = null;
         
-        // Update tab buttons
         const ledgerTabs = document.querySelectorAll('.ledger-tab');
         ledgerTabs.forEach(t => {
           if (t.getAttribute('data-filter') === navTarget) {
@@ -561,7 +550,6 @@ function setupEventListeners() {
     });
   });
 
-  // Ledger Filter Tabs
   const ledgerTabs = document.querySelectorAll('.ledger-tab');
   ledgerTabs.forEach(tab => {
     tab.addEventListener('click', () => {
@@ -578,7 +566,6 @@ function setupEventListeners() {
     });
   });
 
-  // Category Filters
   const categoryFilterRows = document.querySelectorAll('.cat-filter-btn');
   categoryFilterRows.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -597,7 +584,6 @@ function setupEventListeners() {
     });
   });
 
-  // Keyboard Shortcuts (⌘K)
   document.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
       e.preventDefault();
@@ -621,7 +607,6 @@ function setupEventListeners() {
   if (tableSearchInput) tableSearchInput.addEventListener('input', (e) => handleSearch(e.target.value));
   if (headerSearchInput) headerSearchInput.addEventListener('input', (e) => handleSearch(e.target.value));
 
-  // Target Budget Limit Editor
   if (editBudgetBtn) {
     editBudgetBtn.addEventListener('click', () => {
       const inputVal = prompt('Enter your target monthly budget limit (in USD):', targetMonthlyBudgetUsd);
@@ -634,21 +619,18 @@ function setupEventListeners() {
     });
   }
 
-  // Export CSV Action
   if (exportCsvBtn) exportCsvBtn.addEventListener('click', exportToCSV);
   if (sidebarExportBtn) sidebarExportBtn.addEventListener('click', exportToCSV);
 
-  // Reset Dataset Action
   if (resetLedgerBtn) {
     resetLedgerBtn.addEventListener('click', async () => {
-      if (confirm('Clear active ledger and reload default sample expenses?')) {
-        await reseedExpenses();
-        showToast('Ledger reset to sample dataset');
+      if (confirm('Clear all entries from active vault?')) {
+        await clearAllExpenses();
+        showToast('All vault expenses cleared');
       }
     });
   }
 
-  // Multi-Vault Selector
   const vaultSelector = document.getElementById('vaultSelector');
   if (vaultSelector) {
     vaultSelector.addEventListener('change', (e) => {
@@ -662,7 +644,6 @@ function setupEventListeners() {
     });
   }
 
-  // Modal Triggers
   if (openAddModalBtn) openAddModalBtn.addEventListener('click', () => openModal());
   if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
   if (cancelModalBtn) cancelModalBtn.addEventListener('click', closeModal);
@@ -672,7 +653,6 @@ function setupEventListeners() {
     });
   }
 
-  // Table Action Delegation (Edit, Delete, Status Toggle)
   if (expenseRowsContainer) {
     expenseRowsContainer.addEventListener('click', async (e) => {
       const editBtn = e.target.closest('.edit-btn');
@@ -704,7 +684,6 @@ function setupEventListeners() {
     });
   }
 
-  // Form Submission (Add / Edit)
   if (expenseForm) {
     expenseForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -735,7 +714,6 @@ function setupEventListeners() {
         showToast(`Recorded new expense: ${title}`);
       }
 
-      // Reset filters so saved row is immediately visible
       if (currentFilter !== 'all' && currentFilter !== cadence) {
         currentFilter = 'all';
         const ledgerTabs = document.querySelectorAll('.ledger-tab');
@@ -759,7 +737,6 @@ function setupEventListeners() {
   }
 }
 
-// App Entrypoint
 async function startApp() {
   console.log('Initializing Obsidian Expense Tracker...');
   await initAuth();

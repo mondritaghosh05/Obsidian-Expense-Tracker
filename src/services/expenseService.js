@@ -13,117 +13,8 @@ import {
 } from 'firebase/firestore';
 import { db, getCurrentUserId } from '../firebase.js';
 
-export const INITIAL_SEED_EXPENSES = [
-  {
-    title: "Blue Bottle Coffee",
-    category: "Dining",
-    cadence: "regular",
-    amount: 6.50,
-    dueDate: "Daily (Recurring)",
-    paymentMethod: "Apple Pay (••8492)",
-    note: "Daily Roastery espresso",
-    status: "addressed"
-  },
-  {
-    title: "Whole Foods Market",
-    category: "Provisions",
-    cadence: "regular",
-    amount: 142.30,
-    dueDate: "Every Sunday",
-    paymentMethod: "Amex Gold (••1004)",
-    note: "Weekly organic pantry",
-    status: "addressed"
-  },
-  {
-    title: "Uber Transit & Commute",
-    category: "Transit",
-    cadence: "regular",
-    amount: 34.20,
-    dueDate: "Weekly avg",
-    paymentMethod: "Chase Sapphire (••3011)",
-    note: "Weekly city travel",
-    status: "pending"
-  },
-  {
-    title: "Studio Apartment Lease",
-    category: "Housing",
-    cadence: "monthly",
-    amount: 2400.00,
-    dueDate: "1st of month",
-    paymentMethod: "ACH Direct Debit",
-    note: "Primary residential rent",
-    status: "addressed"
-  },
-  {
-    title: "Figma Enterprise Org",
-    category: "Software",
-    cadence: "monthly",
-    amount: 45.00,
-    dueDate: "Dec 01, 2024",
-    paymentMethod: "Amex Corp (••9901)",
-    note: "Design system & seats",
-    status: "pending"
-  },
-  {
-    title: "Equinox Fitness Club",
-    category: "Health",
-    cadence: "monthly",
-    amount: 280.00,
-    dueDate: "Dec 08, 2024",
-    paymentMethod: "Chase Sapphire (••3011)",
-    note: "Tier X All-Access club",
-    status: "pending"
-  },
-  {
-    title: "Claude Pro Subscription",
-    category: "Software",
-    cadence: "monthly",
-    amount: 20.00,
-    dueDate: "Dec 14, 2024",
-    paymentMethod: "Apple Pay (••8492)",
-    note: "AI research workflow",
-    status: "addressed"
-  },
-  {
-    title: "Apple Developer Program",
-    category: "Dev Ops",
-    cadence: "yearly",
-    amount: 99.00,
-    dueDate: "Jul 18, 2025",
-    paymentMethod: "Apple Card (••2910)",
-    note: "Annual iOS / macOS distribution",
-    status: "addressed"
-  },
-  {
-    title: "Annual Auto Insurance",
-    category: "Insurance",
-    cadence: "yearly",
-    amount: 1450.00,
-    dueDate: "Mar 22, 2025",
-    paymentMethod: "ACH Escrow Vault",
-    note: "Geico comprehensive policy",
-    status: "addressed"
-  },
-  {
-    title: "JetBrains All Products Pack",
-    category: "Software",
-    cadence: "yearly",
-    amount: 289.00,
-    dueDate: "Oct 11, 2025",
-    paymentMethod: "Amex Corp (••9901)",
-    note: "Annual IDE workstation suite",
-    status: "pending"
-  }
-];
-
 let activeVault = 'primary_expenses';
-
-let localExpenses = INITIAL_SEED_EXPENSES.map((item, index) => ({
-  id: 'local_' + (index + 1),
-  ...item,
-  createdAt: new Date().toISOString()
-}));
-
+let localExpenses = [];
 let listeners = [];
 
 function notifyLocalListeners() {
@@ -138,33 +29,21 @@ export function getActiveVault() {
   return activeVault;
 }
 
+/**
+ * Subscribes to real-time expense updates from Firestore.
+ * Does NOT auto-seed sample data. Stays completely empty until user logs an expense.
+ */
 export function subscribeToExpenses(onUpdate) {
   const collectionRef = collection(db, activeVault);
   
   try {
     const q = query(collectionRef, orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
-      if (snapshot.empty) {
-        console.log(`Seeding initial sample data to Firestore (${activeVault})...`);
-        for (const item of INITIAL_SEED_EXPENSES) {
-          try {
-            await addDoc(collectionRef, {
-              ...item,
-              userId: getCurrentUserId(),
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp()
-            });
-          } catch (e) {
-            console.warn('Seeding row skipped:', e.message);
-          }
-        }
-      } else {
-        const items = snapshot.docs.map(docSnap => ({
-          id: docSnap.id,
-          ...docSnap.data()
-        }));
-        onUpdate(items);
-      }
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const items = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+      onUpdate(items);
     }, (error) => {
       console.warn('Firestore snapshot listener notice:', error.message);
       listeners.push(onUpdate);
@@ -182,6 +61,9 @@ export function subscribeToExpenses(onUpdate) {
   }
 }
 
+/**
+ * Adds a new user-logged expense document to Firestore or local store.
+ */
 export async function addExpenseDoc(expenseData) {
   const payload = {
     title: expenseData.title,
@@ -268,22 +150,5 @@ export async function clearAllExpenses() {
     console.warn('Clearing Firestore vault failed, clearing local store:', err.message);
     localExpenses = [];
     notifyLocalListeners();
-  }
-}
-
-export async function reseedExpenses() {
-  await clearAllExpenses();
-  const collectionRef = collection(db, activeVault);
-  for (const item of INITIAL_SEED_EXPENSES) {
-    try {
-      await addDoc(collectionRef, {
-        ...item,
-        userId: getCurrentUserId(),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-    } catch (e) {
-      console.warn('Reseed row skipped:', e.message);
-    }
   }
 }
