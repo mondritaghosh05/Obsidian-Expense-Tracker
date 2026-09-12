@@ -8,11 +8,12 @@ import {
   serverTimestamp,
   query,
   orderBy,
-  getDocs
+  getDocs,
+  writeBatch
 } from 'firebase/firestore';
 import { db, getCurrentUserId } from '../firebase.js';
 
-const INITIAL_SEED_EXPENSES = [
+export const INITIAL_SEED_EXPENSES = [
   {
     title: "Blue Bottle Coffee",
     category: "Dining",
@@ -105,12 +106,14 @@ const INITIAL_SEED_EXPENSES = [
   }
 ];
 
-// Fallback in-memory store if Firestore network is unconfigured/blocked
-let localExpenses = [...INITIAL_SEED_EXPENSES.map((item, index) => ({
+let activeVault = 'primary_expenses';
+
+// Fallback in-memory store
+let localExpenses = INITIAL_SEED_EXPENSES.map((item, index) => ({
   id: 'local_' + (index + 1),
   ...item,
   createdAt: new Date().toISOString()
-}))];
+}));
 
 let listeners = [];
 
@@ -118,19 +121,25 @@ function notifyLocalListeners() {
   listeners.forEach(cb => cb(localExpenses));
 }
 
+export function setActiveVault(vaultName) {
+  activeVault = vaultName;
+}
+
+export function getActiveVault() {
+  return activeVault;
+}
+
 /**
  * Subscribes to real-time expense updates from Firestore.
- * Automatically handles seeding default dataset if Firestore is empty.
  */
 export function subscribeToExpenses(onUpdate) {
-  const collectionRef = collection(db, 'expenses');
+  const collectionRef = collection(db, activeVault);
   
   try {
     const q = query(collectionRef, orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       if (snapshot.empty) {
-        // Seed initial data
-        console.log('Seeding initial expense directory to Cloud Firestore...');
+        console.log(`Seeding initial sample data to Firestore (${activeVault})...`);
         for (const item of INITIAL_SEED_EXPENSES) {
           try {
             await addDoc(collectionRef, {
@@ -151,14 +160,14 @@ export function subscribeToExpenses(onUpdate) {
         onUpdate(items);
       }
     }, (error) => {
-      console.warn('Firestore snapshot listener error. Falling back to reactive local state:', error.message);
+      console.warn('Firestore snapshot listener notice:', error.message);
       listeners.push(onUpdate);
       onUpdate(localExpenses);
     });
 
     return unsubscribe;
   } catch (err) {
-    console.warn('Using local reactive fallback store:', err.message);
+    console.warn('Using local reactive store fallback:', err.message);
     listeners.push(onUpdate);
     onUpdate(localExpenses);
     return () => {
@@ -185,7 +194,7 @@ export async function addExpenseDoc(expenseData) {
   };
 
   try {
-    const collectionRef = collection(db, 'expenses');
+    const collectionRef = collection(db, activeVault);
     const docRef = await addDoc(collectionRef, payload);
     return docRef.id;
   } catch (err) {
@@ -212,7 +221,7 @@ export async function updateExpenseDoc(id, updateData) {
   };
 
   try {
-    const docRef = doc(db, 'expenses', id);
+    const docRef = doc(db, activeVault, id);
     await updateDoc(docRef, payload);
   } catch (err) {
     console.warn('Updating Firestore document failed, updating local store:', err.message);
@@ -226,11 +235,50 @@ export async function updateExpenseDoc(id, updateData) {
  */
 export async function deleteExpenseDoc(id) {
   try {
-    const docRef = doc(db, 'expenses', id);
+    const docRef = doc(db, activeVault, id);
     await deleteDoc(docRef);
   } catch (err) {
     console.warn('Deleting Firestore document failed, updating local store:', err.message);
     localExpenses = localExpenses.filter(item => item.id !== id);
     notifyLocalListeners();
+  }
+}
+
+/**
+ * Clears all expenses from active vault.
+ */
+export async function clearAllExpenses() {
+  try {
+    const collectionRef = collection(db, activeVault);
+    const snapshot = await getDocs(collectionRef);
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(docSnap => {
+      batch.delete(docSnap.ref);
+    });
+    await batch.commit();
+  } catch (err) {
+    console.warn('Clearing Firestore vault failed, clearing local store:', err.message);
+    localExpenses = [];
+    notifyLocalListeners();
+  }
+}
+
+/**
+ * Reseeds sample dataset into active vault.
+ */
+export async function reseedExpenses() {
+  await clearAllExpenses();
+  const collectionRef = collection(db, activeVault);
+  for (const item of INITIAL_SEED_EXPENSES) {
+    try {
+      await addDoc(collectionRef, {
+        ...item,
+        userId: getCurrentUserId(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    } catch (e) {
+      console.warn('Reseed row skipped:', e.message);
+    }
   }
 }

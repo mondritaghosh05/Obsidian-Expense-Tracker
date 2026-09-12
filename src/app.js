@@ -3,7 +3,10 @@ import {
   subscribeToExpenses, 
   addExpenseDoc, 
   updateExpenseDoc, 
-  deleteExpenseDoc 
+  deleteExpenseDoc,
+  clearAllExpenses,
+  reseedExpenses,
+  setActiveVault
 } from './services/expenseService.js';
 import { 
   getActiveCurrency, 
@@ -12,9 +15,13 @@ import {
 } from './services/fxService.js';
 
 let allExpenses = [];
-let currentFilter = 'all';
+let currentFilter = 'all'; // 'all', 'regular', 'monthly', 'yearly'
+let selectedCategoryFilter = null; // null or specific category
 let searchQuery = '';
 let editingExpenseId = null;
+
+// Target monthly budget state (Default $15,000)
+let targetMonthlyBudgetUsd = parseFloat(localStorage.getItem('obsidian_target_budget') || '15000');
 
 // Category metadata helper
 const CATEGORY_STYLES = {
@@ -40,9 +47,13 @@ const regularMetric = document.getElementById('regularMetric');
 const monthlyMetric = document.getElementById('monthlyMetric');
 const yearlyAmortMetric = document.getElementById('yearlyAmortMetric');
 
+const totalOutflowProgressBar = document.getElementById('totalOutflowProgressBar');
+const budgetStatusTag = document.getElementById('budgetStatusTag');
+
 const expenseRowsContainer = document.getElementById('expenseRowsContainer');
 const displayedCount = document.getElementById('displayedCount');
 const tableSearchInput = document.getElementById('tableSearchInput');
+const headerSearchInput = document.getElementById('headerSearchInput');
 
 const expenseModal = document.getElementById('expenseModal');
 const openAddModalBtn = document.getElementById('openAddModalBtn');
@@ -51,6 +62,10 @@ const cancelModalBtn = document.getElementById('cancelModalBtn');
 const expenseForm = document.getElementById('expenseForm');
 const modalHeading = document.getElementById('modalHeading');
 const modalCurrencySymbol = document.getElementById('modalCurrencySymbol');
+
+const exportCsvBtn = document.getElementById('exportCsvBtn');
+const resetLedgerBtn = document.getElementById('resetLedgerBtn');
+const editBudgetBtn = document.getElementById('editBudgetBtn');
 
 const toast = document.getElementById('toastNotification');
 const toastMessage = document.getElementById('toastMessage');
@@ -66,7 +81,7 @@ function showToast(msg) {
   }, 2500);
 }
 
-// Update Summary Metrics
+// Recalculate Metrics and Budget Target Status
 function updateMetrics() {
   let regularUsdMonthly = 0;
   let monthlyUsdFixed = 0;
@@ -75,11 +90,8 @@ function updateMetrics() {
   allExpenses.forEach(exp => {
     const amt = parseFloat(exp.amount) || 0;
     if (exp.cadence === 'regular') {
-      // Estimate monthly equivalent based on due date description or average
       if ((exp.dueDate || '').toLowerCase().includes('daily')) {
         regularUsdMonthly += amt * 30;
-      } else if ((exp.dueDate || '').toLowerCase().includes('sunday') || (exp.dueDate || '').toLowerCase().includes('wk') || (exp.dueDate || '').toLowerCase().includes('weekly')) {
-        regularUsdMonthly += amt * 4.33;
       } else {
         regularUsdMonthly += amt * 4.33;
       }
@@ -96,9 +108,28 @@ function updateMetrics() {
   if (regularMetric) regularMetric.textContent = formatCurrency(regularUsdMonthly);
   if (monthlyMetric) monthlyMetric.textContent = formatCurrency(monthlyUsdFixed);
   if (yearlyAmortMetric) yearlyAmortMetric.textContent = formatCurrency(yearlyUsdAmortized);
+
+  // Budget Progress Bar & Status Delta
+  const pctSpent = Math.min(100, Math.round((totalMonthlyOutflowUsd / targetMonthlyBudgetUsd) * 100));
+  if (totalOutflowProgressBar) {
+    totalOutflowProgressBar.style.width = `${pctSpent}%`;
+  }
+
+  if (budgetStatusTag) {
+    const deltaUsd = targetMonthlyBudgetUsd - totalMonthlyOutflowUsd;
+    if (deltaUsd >= 0) {
+      const pctUnder = Math.round((deltaUsd / targetMonthlyBudgetUsd) * 100);
+      budgetStatusTag.className = 'inline-flex items-center text-secondary font-label-numeric-sm text-label-numeric-sm font-semibold';
+      budgetStatusTag.innerHTML = `<span class="material-symbols-outlined text-[14px]">arrow_downward</span>${pctUnder}% under budget goal`;
+    } else {
+      const pctOver = Math.round((Math.abs(deltaUsd) / targetMonthlyBudgetUsd) * 100);
+      budgetStatusTag.className = 'inline-flex items-center text-error font-label-numeric-sm text-label-numeric-sm font-semibold';
+      budgetStatusTag.innerHTML = `<span class="material-symbols-outlined text-[14px]">arrow_upward</span>+${pctOver}% over budget ceiling`;
+    }
+  }
 }
 
-// Update Donut SVG Chart & Category Breakdown
+// Dynamically Render Donut SVG Chart & Interactive Category Filters
 function updateDonutChart() {
   const categoryTotals = {
     Housing: 0,
@@ -128,7 +159,7 @@ function updateDonutChart() {
   const transitPct = Math.round((categoryTotals.Transit / grandTotal) * 100);
   const otherPct = Math.max(0, 100 - (housingPct + softwarePct + diningPct + transitPct));
 
-  // Update DOM percentages if elements exist
+  // Update DOM percentages
   const housingEl = document.getElementById('pctHousing');
   const softwareEl = document.getElementById('pctSoftware');
   const diningEl = document.getElementById('pctDining');
@@ -139,7 +170,7 @@ function updateDonutChart() {
   if (diningEl) diningEl.textContent = `${diningPct}%`;
   if (transitEl) transitEl.textContent = `${transitPct}%`;
 
-  // SVG Circle Stroke Adjustments (Circumference ~ 238.76)
+  // SVG Circumference ~ 238.76
   const circ = 238.76;
   let offset = 0;
 
@@ -162,21 +193,107 @@ function updateDonutChart() {
   });
 }
 
-// Render Table Rows
+// Dynamically Render Cashflow Velocity SVG Graph
+function updateVelocityGraph() {
+  const cyanPath = document.getElementById('cyanGraphPath');
+  const cyanArea = document.getElementById('cyanGraphArea');
+  const emeraldPath = document.getElementById('emeraldGraphPath');
+  const emeraldArea = document.getElementById('emeraldGraphArea');
+  const graphStatus = document.getElementById('graphBudgetStatus');
+
+  if (!cyanPath || !cyanArea) return;
+
+  let monthlySumUsd = 0;
+  allExpenses.forEach(exp => {
+    const amt = parseFloat(exp.amount) || 0;
+    if (exp.cadence === 'regular') monthlySumUsd += amt * 4.33;
+    else if (exp.cadence === 'monthly') monthlySumUsd += amt;
+    else if (exp.cadence === 'yearly') monthlySumUsd += amt / 12;
+  });
+
+  // Generate 7-point projection curve across months
+  // Canvas size: 700 width x 200 height. Y=0 is top, Y=200 is bottom.
+  // Base baseline Y=160
+  const maxScale = Math.max(20000, targetMonthlyBudgetUsd * 1.4);
+  const normalizedOutflow = Math.min(180, (monthlySumUsd / maxScale) * 160);
+  const normalizedTarget = Math.min(180, (targetMonthlyBudgetUsd / maxScale) * 160);
+
+  const yActual = 180 - normalizedOutflow;
+  const yTarget = 180 - normalizedTarget;
+
+  // Actual Outflow Curve Points
+  const p0 = [0, yActual + 15];
+  const p1 = [120, yActual - 10];
+  const p2 = [240, yActual + 8];
+  const p3 = [360, yActual - 15];
+  const p4 = [480, yActual + 5];
+  const p5 = [600, yActual - 20];
+  const p6 = [700, yActual - 10];
+
+  // Target Ceiling Curve Points
+  const t0 = [0, yTarget + 10];
+  const t1 = [140, yTarget - 5];
+  const t2 = [280, yTarget + 5];
+  const t3 = [420, yTarget - 10];
+  const t4 = [560, yTarget + 2];
+  const t5 = [700, yTarget - 5];
+
+  const dCyanPath = `M${p0[0]},${p0[1]} C${p1[0]},${p1[1]} ${p2[0]},${p2[1]} ${p3[0]},${p3[1]} C${p4[0]},${p4[1]} ${p5[0]},${p5[1]} ${p6[0]},${p6[1]}`;
+  const dCyanArea = `${dCyanPath} L700,200 L0,200 Z`;
+
+  const dEmeraldPath = `M${t0[0]},${t0[1]} C${t1[0]},${t1[1]} ${t2[0]},${t2[1]} ${t3[0]},${t3[1]} C${t4[0]},${t4[1]} ${t5[0]},${t5[1]}`;
+  const dEmeraldArea = `${dEmeraldPath} L700,200 L0,200 Z`;
+
+  cyanPath.setAttribute('d', dCyanPath);
+  cyanArea.setAttribute('d', dCyanArea);
+
+  if (emeraldPath) emeraldPath.setAttribute('d', dEmeraldPath);
+  if (emeraldArea) emeraldArea.setAttribute('d', dEmeraldArea);
+
+  if (graphStatus) {
+    const delta = Math.round(((targetMonthlyBudgetUsd - monthlySumUsd) / targetMonthlyBudgetUsd) * 100);
+    if (delta >= 0) {
+      graphStatus.textContent = `${delta}% under annual burn target`;
+      graphStatus.className = 'font-label-numeric-sm text-label-numeric-sm text-secondary font-medium';
+    } else {
+      graphStatus.textContent = `${Math.abs(delta)}% above burn ceiling`;
+      graphStatus.className = 'font-label-numeric-sm text-label-numeric-sm text-error font-medium';
+    }
+  }
+}
+
+// Render Data Table
 function renderTable() {
   if (!expenseRowsContainer) return;
 
   const filtered = allExpenses.filter(exp => {
     const matchesTab = (currentFilter === 'all' || exp.cadence === currentFilter);
+    const matchesCat = !selectedCategoryFilter || exp.category.toLowerCase().includes(selectedCategoryFilter.toLowerCase());
+    
     const q = searchQuery.toLowerCase();
     const matchesSearch = !q || 
       (exp.title || '').toLowerCase().includes(q) || 
       (exp.category || '').toLowerCase().includes(q) || 
       (exp.paymentMethod || '').toLowerCase().includes(q);
-    return matchesTab && matchesSearch;
+
+    return matchesTab && matchesCat && matchesSearch;
   });
 
   if (displayedCount) displayedCount.textContent = filtered.length;
+
+  if (filtered.length === 0) {
+    expenseRowsContainer.innerHTML = `
+      <tr>
+        <td colspan="8" class="py-8 text-center text-on-surface-variant font-body-md">
+          <div class="flex flex-col items-center gap-2">
+            <span class="material-symbols-outlined text-[32px]">folder_off</span>
+            <span>No matching expense entries found in current filter.</span>
+          </div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
 
   expenseRowsContainer.innerHTML = filtered.map(exp => {
     const style = getCategoryStyle(exp.category);
@@ -235,7 +352,39 @@ function renderTable() {
 function updateUI() {
   updateMetrics();
   updateDonutChart();
+  updateVelocityGraph();
   renderTable();
+}
+
+// Export Ledger to CSV File
+function exportToCSV() {
+  if (allExpenses.length === 0) {
+    showToast('No expenses available to export');
+    return;
+  }
+
+  const headers = ['ID', 'Title', 'Category', 'Cadence', 'Amount_USD', 'DueDate', 'PaymentMethod', 'Note'];
+  const rows = allExpenses.map(e => [
+    `"${e.id}"`,
+    `"${e.title.replace(/"/g, '""')}"`,
+    `"${e.category}"`,
+    `"${e.cadence}"`,
+    e.amount,
+    `"${e.dueDate || ''}"`,
+    `"${e.paymentMethod || ''}"`,
+    `"${(e.note || '').replace(/"/g, '""')}"`
+  ]);
+
+  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement('a');
+  link.setAttribute('href', encodedUri);
+  link.setAttribute('download', `obsidian_ledger_export_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  showToast('Exported ledger CSV to downloads');
 }
 
 // Modal Handlers
@@ -275,9 +424,9 @@ function closeModal() {
   expenseForm.reset();
 }
 
-// Setup Event Listeners
+// Event Listeners Setup
 function setupEventListeners() {
-  // Currency Switcher
+  // Currency Buttons
   const currencyButtons = document.querySelectorAll('.currency-btn');
   currencyButtons.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -311,11 +460,87 @@ function setupEventListeners() {
     });
   });
 
-  // Table Search Input
-  if (tableSearchInput) {
-    tableSearchInput.addEventListener('input', (e) => {
-      searchQuery = e.target.value || '';
+  // Category Donut Slice & Legend Filters
+  const categoryFilterRows = document.querySelectorAll('.cat-filter-btn');
+  categoryFilterRows.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const catTarget = btn.getAttribute('data-category');
+      if (selectedCategoryFilter === catTarget) {
+        selectedCategoryFilter = null;
+        btn.classList.remove('bg-surface-container-high');
+        showToast('Cleared category filter');
+      } else {
+        selectedCategoryFilter = catTarget;
+        categoryFilterRows.forEach(b => b.classList.remove('bg-surface-container-high'));
+        btn.classList.add('bg-surface-container-high');
+        showToast(`Filtered by ${catTarget}`);
+      }
       renderTable();
+    });
+  });
+
+  // ⌘K / Ctrl+K Global Search Shortcut
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      if (headerSearchInput) {
+        headerSearchInput.focus();
+        headerSearchInput.select();
+      } else if (tableSearchInput) {
+        tableSearchInput.focus();
+        tableSearchInput.select();
+      }
+    }
+  });
+
+  // Search input listeners
+  const handleSearch = (val) => {
+    searchQuery = val || '';
+    if (headerSearchInput && headerSearchInput.value !== val) headerSearchInput.value = val;
+    if (tableSearchInput && tableSearchInput.value !== val) tableSearchInput.value = val;
+    renderTable();
+  };
+
+  if (tableSearchInput) tableSearchInput.addEventListener('input', (e) => handleSearch(e.target.value));
+  if (headerSearchInput) headerSearchInput.addEventListener('input', (e) => handleSearch(e.target.value));
+
+  // Edit Budget Goal Listener
+  if (editBudgetBtn) {
+    editBudgetBtn.addEventListener('click', () => {
+      const inputVal = prompt('Enter your target monthly budget limit (in USD):', targetMonthlyBudgetUsd);
+      if (inputVal && !isNaN(parseFloat(inputVal))) {
+        targetMonthlyBudgetUsd = Math.max(100, parseFloat(inputVal));
+        localStorage.setItem('obsidian_target_budget', targetMonthlyBudgetUsd.toString());
+        updateUI();
+        showToast(`Target monthly budget updated to $${targetMonthlyBudgetUsd.toLocaleString()}`);
+      }
+    });
+  }
+
+  // Export CSV Action
+  if (exportCsvBtn) exportCsvBtn.addEventListener('click', exportToCSV);
+
+  // Reset / Clear Ledger Action
+  if (resetLedgerBtn) {
+    resetLedgerBtn.addEventListener('click', async () => {
+      if (confirm('Clear active ledger and reload default sample expenses?')) {
+        await reseedExpenses();
+        showToast('Ledger reset to sample dataset');
+      }
+    });
+  }
+
+  // Vault Switcher Listener
+  const vaultSelector = document.getElementById('vaultSelector');
+  if (vaultSelector) {
+    vaultSelector.addEventListener('change', (e) => {
+      const selectedVault = e.target.value;
+      setActiveVault(selectedVault);
+      subscribeToExpenses((items) => {
+        allExpenses = items;
+        updateUI();
+      });
+      showToast(`Switched active vault to ${e.target.options[e.target.selectedIndex].text}`);
     });
   }
 
@@ -329,7 +554,7 @@ function setupEventListeners() {
     });
   }
 
-  // Edit / Delete delegation
+  // Table Edit/Delete delegation
   if (expenseRowsContainer) {
     expenseRowsContainer.addEventListener('click', async (e) => {
       const editBtn = e.target.closest('.edit-btn');
@@ -353,7 +578,7 @@ function setupEventListeners() {
     });
   }
 
-  // Form Submit (Add / Edit)
+  // Form Submit
   if (expenseForm) {
     expenseForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -386,9 +611,9 @@ function setupEventListeners() {
   }
 }
 
-// App Initialization Entrypoint
+// Entrypoint
 async function startApp() {
-  console.log('Initializing Obsidian Expense Tracker...');
+  console.log('Initializing Obsidian Interactive Expense Tracker...');
   await initAuth();
 
   setupEventListeners();

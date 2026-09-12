@@ -145,12 +145,12 @@
       </div>
     </div>
 
-    <!-- Search input in Header -->
+    <!-- ⌘K Search input in Header -->
     <div class="flex-1 max-w-xl mx-space-md flex items-center gap-space-sm">
       <div class="flex-1 flex items-center gap-space-xs px-space-md py-1 rounded-xl bg-surface-container-low/70 backdrop-blur-md text-on-surface-variant shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
         <span class="material-symbols-outlined text-[16px]">search</span>
-        <input class="bg-transparent border-none outline-none text-on-surface placeholder:text-on-surface-variant font-body-sm text-body-sm w-full" placeholder="Search transactions, vaults, tags (⌘K)..." type="text"/>
-        <span class="font-label-caps text-label-caps px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant">⌘K</span>
+        <input class="bg-transparent border-none outline-none text-on-surface placeholder:text-on-surface-variant font-body-sm text-body-sm w-full" id="headerSearchInput" placeholder="Search transactions, vaults, tags (⌘K)..." type="text"/>
+        <span class="font-label-caps text-label-caps px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant cursor-pointer" title="Press ⌘K or Ctrl+K to search">⌘K</span>
       </div>
       <div class="hidden xl:flex items-center gap-space-xs px-space-md py-1 rounded-full bg-surface-container-low/60 backdrop-blur-md">
         <div class="flex items-center gap-1 font-label-numeric-sm text-label-numeric-sm text-secondary">
@@ -165,11 +165,11 @@
 
     <!-- Right Actions -->
     <div class="flex items-center gap-space-sm">
-      <button class="w-8 h-8 rounded-lg flex items-center justify-center bg-surface-container-low/60 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" title="Sync Vault">
-        <span class="material-symbols-outlined text-[18px]">sync_alt</span>
+      <button class="w-8 h-8 rounded-lg flex items-center justify-center bg-surface-container-low/60 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" id="exportCsvBtn" title="Export Ledger CSV">
+        <span class="material-symbols-outlined text-[18px]">download</span>
       </button>
-      <button class="w-8 h-8 rounded-lg flex items-center justify-center bg-surface-container-low/60 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" title="Notifications">
-        <span class="material-symbols-outlined text-[18px]">notifications</span>
+      <button class="w-8 h-8 rounded-lg flex items-center justify-center bg-surface-container-low/60 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" id="resetLedgerBtn" title="Reload Sample Dataset">
+        <span class="material-symbols-outlined text-[18px]">restart_alt</span>
       </button>
       <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-[0_0_12px_rgba(0,242,254,0.3)] cursor-pointer" title="User Profile">
         <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
@@ -180,17 +180,21 @@
   <!-- Sidebar Navigation -->
   <aside class="fixed left-0 top-14 bottom-0 w-64 bg-surface-container-lowest/85 backdrop-blur-xl shadow-[1px_0_12px_rgba(0,0,0,0.5)] z-40 flex flex-col justify-between p-space-md">
     <div class="flex flex-col gap-space-md">
-      <div class="flex items-center justify-between p-space-sm rounded-xl bg-surface-container-low/70 hover:bg-surface-container-high transition-colors cursor-pointer">
-        <div class="flex items-center gap-space-sm">
-          <div class="w-7 h-7 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary">
+      <!-- Multi-Vault Selector -->
+      <div class="flex items-center justify-between p-space-sm rounded-xl bg-surface-container-low/70 hover:bg-surface-container-high transition-colors">
+        <div class="flex items-center gap-space-sm w-full">
+          <div class="w-7 h-7 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary flex-shrink-0">
             <span class="material-symbols-outlined text-[16px]">account_balance_wallet</span>
           </div>
-          <div class="flex flex-col text-left">
-            <span class="font-title-md text-title-md text-on-surface font-semibold leading-tight">Primary Ledger</span>
-            <span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Multi-Asset Vault</span>
+          <div class="flex flex-col text-left flex-1 min-w-0">
+            <select id="vaultSelector" class="bg-transparent border-none outline-none font-title-md text-title-md text-on-surface font-semibold leading-tight w-full cursor-pointer">
+              <option value="primary_expenses" class="bg-surface-container-high text-on-surface">Primary Ledger</option>
+              <option value="business_expenses" class="bg-surface-container-high text-on-surface">Business Vault</option>
+              <option value="personal_expenses" class="bg-surface-container-high text-on-surface">Personal Ledger</option>
+            </select>
+            <span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Multi-Asset Cloud Vault</span>
           </div>
         </div>
-        <span class="material-symbols-outlined text-on-surface-variant text-[18px]">unfold_more</span>
       </div>
       <div class="px-space-xs font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest font-semibold">Analytics &amp; Ledgers</div>
       <nav class="flex flex-col gap-space-xs">
@@ -209,9 +213,9 @@
         <a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all font-body-md text-body-md" href="#">
           <span class="material-symbols-outlined text-[18px]">currency_exchange</span>FX Currency Exchange
         </a>
-        <a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all font-body-md text-body-md" href="#">
-          <span class="material-symbols-outlined text-[18px]">tune</span>Export &amp; Settings
-        </a>
+        <button class="flex items-center gap-space-sm px-space-md py-space-sm rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all font-body-md text-body-md text-left w-full" id="exportCsvBtn">
+          <span class="material-symbols-outlined text-[18px]">download</span>Export CSV Ledger
+        </button>
       </nav>
     </div>
     <div class="flex flex-col gap-space-sm pt-space-md">
@@ -248,22 +252,22 @@
               <span class="font-label-caps text-label-caps uppercase tracking-wider text-secondary">FX Rates Synced</span>
             </div>
             <div class="flex items-center gap-space-md font-label-numeric-sm text-label-numeric-sm overflow-x-auto py-0.5">
-              <div class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-lowest/60 text-on-surface hover:bg-surface-container-lowest transition-colors">
+              <div class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-lowest/60 text-on-surface hover:bg-surface-container-lowest transition-colors cursor-pointer">
                 <span class="text-on-surface-variant">EUR/USD</span>
                 <span class="font-semibold text-primary">1.0894</span>
                 <span class="text-secondary flex items-center text-[11px] font-semibold">+0.14%</span>
               </div>
-              <div class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-lowest/60 text-on-surface hover:bg-surface-container-lowest transition-colors">
+              <div class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-lowest/60 text-on-surface hover:bg-surface-container-lowest transition-colors cursor-pointer">
                 <span class="text-on-surface-variant">USD/GBP</span>
                 <span class="font-semibold text-primary">0.7892</span>
                 <span class="text-error flex items-center text-[11px] font-semibold">-0.06%</span>
               </div>
-              <div class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-lowest/60 text-on-surface hover:bg-surface-container-lowest transition-colors">
+              <div class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-lowest/60 text-on-surface hover:bg-surface-container-lowest transition-colors cursor-pointer">
                 <span class="text-on-surface-variant">USD/JPY</span>
                 <span class="font-semibold text-primary">154.28</span>
                 <span class="text-secondary flex items-center text-[11px] font-semibold">+0.38%</span>
               </div>
-              <div class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-lowest/60 text-on-surface hover:bg-surface-container-lowest transition-colors">
+              <div class="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container-lowest/60 text-on-surface hover:bg-surface-container-lowest transition-colors cursor-pointer">
                 <span class="text-on-surface-variant">USD/CAD</span>
                 <span class="font-semibold text-primary">1.3640</span>
                 <span class="text-secondary flex items-center text-[11px] font-semibold">+0.09%</span>
@@ -290,7 +294,7 @@
         <!-- Dynamic Metrics Grid -->
         <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md">
           <!-- Total Outflow -->
-          <div class="relative overflow-hidden rounded-xl bg-surface-container/60 backdrop-blur-xl p-space-lg shadow-lg group hover:bg-surface-container-high/60 transition-all">
+          <div class="relative overflow-hidden rounded-xl bg-surface-container/60 backdrop-blur-xl p-space-lg shadow-lg group hover:bg-surface-container-high/60 transition-all cursor-pointer" id="editBudgetBtn" title="Click to edit target budget limit">
             <div class="flex items-center justify-between">
               <span class="font-label-caps text-label-caps uppercase tracking-wider text-on-surface-variant font-semibold">Total Monthly Outflow</span>
               <div class="w-8 h-8 rounded-lg bg-primary-container/20 text-primary-container flex items-center justify-center">
@@ -302,13 +306,12 @@
               <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface-variant">/mo eq.</span>
             </div>
             <div class="mt-space-sm flex items-center gap-space-xs">
-              <span class="inline-flex items-center text-secondary font-label-numeric-sm text-label-numeric-sm font-semibold">
-                <span class="material-symbols-outlined text-[14px]">arrow_downward</span>-3.4%
+              <span class="inline-flex items-center text-secondary font-label-numeric-sm text-label-numeric-sm font-semibold" id="budgetStatusTag">
+                <span class="material-symbols-outlined text-[14px]">arrow_downward</span>-3.4% vs target
               </span>
-              <span class="text-on-surface-variant font-body-sm text-body-sm">vs previous cycle</span>
             </div>
             <div class="mt-space-md w-full bg-surface-container-highest/60 rounded-full h-1.5 overflow-hidden">
-              <div class="bg-primary-container h-full rounded-full w-[78%]"></div>
+              <div class="bg-primary-container h-full rounded-full w-[78%] transition-all duration-500" id="totalOutflowProgressBar"></div>
             </div>
           </div>
 
@@ -349,7 +352,7 @@
             </div>
             <div class="mt-space-sm flex items-center gap-space-xs">
               <span class="text-on-surface-variant font-label-numeric-sm text-label-numeric-sm">Active items</span>
-              <span class="text-outline font-body-sm text-body-sm">• Dynamic sync</span>
+              <span class="text-outline font-body-sm text-body-sm">• Live Firestore Sync</span>
             </div>
             <div class="mt-space-md w-full bg-surface-container-highest/60 rounded-full h-1.5 overflow-hidden">
               <div class="bg-primary h-full rounded-full w-[62%]"></div>
@@ -380,7 +383,7 @@
           </div>
         </section>
 
-        <!-- Charts & Statistical Bento Grid -->
+        <!-- Dynamic Velocity Graph & Interactive Bento Grid -->
         <section class="grid grid-cols-1 lg:grid-cols-12 gap-space-md">
           <!-- Trend Graph -->
           <div class="lg:col-span-8 rounded-xl bg-surface-container/60 backdrop-blur-xl p-space-lg shadow-lg flex flex-col justify-between">
@@ -390,20 +393,19 @@
                 <h2 class="font-headline-sm text-headline-sm text-on-surface font-semibold">12-Month Outflow Projection &amp; Budget Delta</h2>
               </div>
               <div class="flex items-center gap-space-xs p-1 rounded-lg bg-surface-container-low">
-                <button class="px-2.5 py-1 rounded-md font-label-caps text-label-caps text-on-surface bg-surface-container-highest font-medium shadow-sm">2024 View</button>
+                <button class="px-2.5 py-1 rounded-md font-label-caps text-label-caps text-on-surface bg-surface-container-highest font-medium shadow-sm">Annual View</button>
                 <button class="px-2.5 py-1 rounded-md font-label-caps text-label-caps text-on-surface-variant hover:text-on-surface transition-colors">Quarterly</button>
-                <button class="px-2.5 py-1 rounded-md font-label-caps text-label-caps text-on-surface-variant hover:text-on-surface transition-colors">Forecast</button>
               </div>
             </div>
             <div class="my-space-md w-full h-56 relative">
               <svg class="w-full h-full" fill="none" preserveaspectratio="none" viewbox="0 0 700 200">
                 <defs>
                   <lineargradient id="cyanGrad" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stop-color="#00f2fe" stop-opacity="0.32"></stop>
+                    <stop offset="0%" stop-color="#00f2fe" stop-opacity="0.35"></stop>
                     <stop offset="100%" stop-color="#00f2fe" stop-opacity="0.0"></stop>
                   </lineargradient>
                   <lineargradient id="emeraldGrad" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stop-color="#4edea3" stop-opacity="0.28"></stop>
+                    <stop offset="0%" stop-color="#4edea3" stop-opacity="0.25"></stop>
                     <stop offset="100%" stop-color="#4edea3" stop-opacity="0.0"></stop>
                   </lineargradient>
                 </defs>
@@ -411,15 +413,12 @@
                 <line opacity="0.4" stroke="#353437" stroke-dasharray="4 4" stroke-width="0.75" x1="0" x2="700" y1="40" y2="40"></line>
                 <line opacity="0.4" stroke="#353437" stroke-dasharray="4 4" stroke-width="0.75" x1="0" x2="700" y1="90" y2="90"></line>
                 <line opacity="0.4" stroke="#353437" stroke-dasharray="4 4" stroke-width="0.75" x1="0" x2="700" y1="140" y2="140"></line>
-                <!-- Emerald curve (Budget ceiling) -->
-                <path d="M0,130 C60,120 120,110 180,115 C240,120 300,105 360,100 C420,95 480,85 540,88 C600,90 660,70 700,75 L700,200 L0,200 Z" fill="url(#emeraldGrad)"></path>
-                <path d="M0,130 C60,120 120,110 180,115 C240,120 300,105 360,100 C420,95 480,85 540,88 C600,90 660,70 700,75" stroke="#4edea3" stroke-linecap="round" stroke-width="2"></path>
-                <!-- Cyan curve (Actual Expenses) -->
-                <path d="M0,160 C50,150 110,140 170,125 C230,110 290,135 350,110 C410,85 470,95 530,70 C590,45 650,60 700,45 L700,200 L0,200 Z" fill="url(#cyanGrad)"></path>
-                <path d="M0,160 C50,150 110,140 170,125 C230,110 290,135 350,110 C410,85 470,95 530,70 C590,45 650,60 700,45" stroke="#00f2fe" stroke-linecap="round" stroke-width="2.5"></path>
-                <!-- Interactive Highlights -->
-                <circle cx="530" cy="70" fill="#00f2fe" r="4.5" stroke="#0e0e10" stroke-width="2"></circle>
-                <circle cx="650" cy="60" fill="#00f2fe" r="4.5" stroke="#0e0e10" stroke-width="2"></circle>
+                <!-- Target Ceiling curve -->
+                <path id="emeraldGraphArea" d="M0,130 C140,125 280,135 420,120 L700,125 L700,200 L0,200 Z" fill="url(#emeraldGrad)"></path>
+                <path id="emeraldGraphPath" d="M0,130 C140,125 280,135 420,120 L700,125" stroke="#4edea3" stroke-linecap="round" stroke-width="2"></path>
+                <!-- Actual Outflow curve -->
+                <path id="cyanGraphArea" d="M0,160 C120,150 240,168 360,145 L700,150 L700,200 L0,200 Z" fill="url(#cyanGrad)"></path>
+                <path id="cyanGraphPath" d="M0,160 C120,150 240,168 360,145 L700,150" stroke="#00f2fe" stroke-linecap="round" stroke-width="2.5" class="transition-all duration-500"></path>
               </svg>
               <div class="flex justify-between font-label-numeric-sm text-label-numeric-sm text-on-surface-variant pt-space-xs">
                 <span>JAN</span><span>MAR</span><span>MAY</span><span>JUL</span><span>SEP</span><span>NOV</span><span>DEC</span>
@@ -436,33 +435,33 @@
                   <span class="text-on-surface-variant">Target Ceiling</span>
                 </div>
               </div>
-              <span class="font-label-numeric-sm text-label-numeric-sm text-secondary font-medium">9.2% under annual burn target</span>
+              <span class="font-label-numeric-sm text-label-numeric-sm text-secondary font-medium" id="graphBudgetStatus">Dynamic calculation...</span>
             </div>
           </div>
 
-          <!-- Dynamic Category Breakdown & Visual Weight -->
+          <!-- Dynamic Category Breakdown & Interactive Filter Legend -->
           <div class="lg:col-span-4 rounded-xl bg-surface-container/60 backdrop-blur-xl p-space-lg shadow-lg flex flex-col justify-between">
             <div>
               <div class="flex items-center justify-between">
                 <span class="font-label-caps text-label-caps uppercase tracking-wider text-on-surface-variant font-semibold">Allocation</span>
-                <span class="font-label-numeric-sm text-label-numeric-sm text-primary">Live Weighted</span>
+                <span class="font-label-numeric-sm text-label-numeric-sm text-primary">Click Slice to Filter</span>
               </div>
               <h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold mt-0.5">Category Weight</h3>
             </div>
             
             <!-- Donut SVG & Distribution Data -->
             <div class="flex items-center justify-center my-space-md relative">
-              <svg class="w-36 h-36 -rotate-90 transform" viewbox="0 0 100 100">
+              <svg class="w-36 h-36 -rotate-90 transform cursor-pointer" viewbox="0 0 100 100">
                 <!-- Housing -->
-                <circle id="donutCircleHousing" cx="50" cy="50" fill="transparent" r="38" stroke="#00f2fe" stroke-dasharray="100.2 238.7" stroke-dashoffset="0" stroke-width="12"></circle>
+                <circle id="donutCircleHousing" cx="50" cy="50" fill="transparent" r="38" stroke="#00f2fe" stroke-dasharray="100.2 238.7" stroke-dashoffset="0" stroke-width="12" class="hover:opacity-80 transition-opacity"></circle>
                 <!-- Software -->
-                <circle id="donutCircleSoftware" cx="50" cy="50" fill="transparent" r="38" stroke="#4edea3" stroke-dasharray="57.2 238.7" stroke-dashoffset="-100.2" stroke-width="12"></circle>
+                <circle id="donutCircleSoftware" cx="50" cy="50" fill="transparent" r="38" stroke="#4edea3" stroke-dasharray="57.2 238.7" stroke-dashoffset="-100.2" stroke-width="12" class="hover:opacity-80 transition-opacity"></circle>
                 <!-- Dining -->
-                <circle id="donutCircleDining" cx="50" cy="50" fill="transparent" r="38" stroke="#d8d7ff" stroke-dasharray="42.9 238.7" stroke-dashoffset="-157.4" stroke-width="12"></circle>
+                <circle id="donutCircleDining" cx="50" cy="50" fill="transparent" r="38" stroke="#d8d7ff" stroke-dasharray="42.9 238.7" stroke-dashoffset="-157.4" stroke-width="12" class="hover:opacity-80 transition-opacity"></circle>
                 <!-- Transit -->
-                <circle id="donutCircleTransit" cx="50" cy="50" fill="transparent" r="38" stroke="#ffb4ab" stroke-dasharray="23.8 238.7" stroke-dashoffset="-200.3" stroke-width="12"></circle>
+                <circle id="donutCircleTransit" cx="50" cy="50" fill="transparent" r="38" stroke="#ffb4ab" stroke-dasharray="23.8 238.7" stroke-dashoffset="-200.3" stroke-width="12" class="hover:opacity-80 transition-opacity"></circle>
                 <!-- Misc -->
-                <circle id="donutCircleOther" cx="50" cy="50" fill="transparent" r="38" stroke="#849495" stroke-dasharray="14.3 238.7" stroke-dashoffset="-224.1" stroke-width="12"></circle>
+                <circle id="donutCircleOther" cx="50" cy="50" fill="transparent" r="38" stroke="#849495" stroke-dasharray="14.3 238.7" stroke-dashoffset="-224.1" stroke-width="12" class="hover:opacity-80 transition-opacity"></circle>
               </svg>
               <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span class="font-label-numeric-lg text-label-numeric-lg text-on-surface font-bold">100%</span>
@@ -470,35 +469,36 @@
               </div>
             </div>
 
+            <!-- Interactive Category Filter Buttons -->
             <div class="flex flex-col gap-space-xs font-body-sm text-body-sm">
-              <div class="flex items-center justify-between py-1 border-b border-surface-container-high/60">
+              <button class="cat-filter-btn flex items-center justify-between py-1 px-2 rounded-lg border-b border-surface-container-high/60 hover:bg-surface-container-high/50 transition-colors w-full text-left" data-category="Housing">
                 <div class="flex items-center gap-2">
                   <span class="w-2.5 h-2.5 rounded-full bg-primary-container"></span>
                   <span class="text-on-surface">Housing &amp; Living</span>
                 </div>
                 <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface font-semibold" id="pctHousing">42%</span>
-              </div>
-              <div class="flex items-center justify-between py-1 border-b border-surface-container-high/60">
+              </button>
+              <button class="cat-filter-btn flex items-center justify-between py-1 px-2 rounded-lg border-b border-surface-container-high/60 hover:bg-surface-container-high/50 transition-colors w-full text-left" data-category="Software">
                 <div class="flex items-center gap-2">
                   <span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
                   <span class="text-on-surface">Software &amp; Cloud</span>
                 </div>
                 <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface font-semibold" id="pctSoftware">24%</span>
-              </div>
-              <div class="flex items-center justify-between py-1 border-b border-surface-container-high/60">
+              </button>
+              <button class="cat-filter-btn flex items-center justify-between py-1 px-2 rounded-lg border-b border-surface-container-high/60 hover:bg-surface-container-high/50 transition-colors w-full text-left" data-category="Dining">
                 <div class="flex items-center gap-2">
                   <span class="w-2.5 h-2.5 rounded-full bg-tertiary-container"></span>
                   <span class="text-on-surface">Dining &amp; Provisions</span>
                 </div>
                 <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface font-semibold" id="pctDining">18%</span>
-              </div>
-              <div class="flex items-center justify-between py-1">
+              </button>
+              <button class="cat-filter-btn flex items-center justify-between py-1 px-2 rounded-lg hover:bg-surface-container-high/50 transition-colors w-full text-left" data-category="Transit">
                 <div class="flex items-center gap-2">
                   <span class="w-2.5 h-2.5 rounded-full bg-error"></span>
                   <span class="text-on-surface">Transit &amp; Mobility</span>
                 </div>
                 <span class="font-label-numeric-sm text-label-numeric-sm text-on-surface font-semibold" id="pctTransit">10%</span>
-              </div>
+              </button>
             </div>
           </div>
         </section>
@@ -534,7 +534,7 @@
           <div class="flex flex-wrap items-center justify-between gap-space-sm py-space-xs">
             <div class="flex-1 max-w-sm flex items-center gap-space-xs px-space-md py-1.5 rounded-xl bg-surface-container-low text-on-surface shadow-inner">
               <span class="material-symbols-outlined text-[16px] text-on-surface-variant">filter_list</span>
-              <input class="bg-transparent border-none outline-none text-on-surface placeholder:text-on-surface-variant font-body-sm text-body-sm w-full" id="tableSearchInput" placeholder="Filter vendor, category, card..." type="text"/>
+              <input class="bg-transparent border-none outline-none text-on-surface placeholder:text-on-surface-variant font-body-sm text-body-sm w-full" id="tableSearchInput" placeholder="Filter vendor, category, card (⌘K)..." type="text"/>
             </div>
             <div class="flex items-center gap-space-xs font-label-caps text-label-caps text-on-surface-variant">
               <span>Displaying <span class="text-on-surface font-semibold" id="displayedCount">0</span> records</span>
